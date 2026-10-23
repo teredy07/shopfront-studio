@@ -1,6 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { products } from "@/lib/products";
+import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
 
 export const Route = createFileRoute("/templates/$slug")({
   loader: ({ params }) => {
