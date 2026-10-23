@@ -43,15 +43,13 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel = "Before",
       }}
     >
       <img src={afterSrc} alt={alt} className="absolute inset-0 h-full w-full object-cover" draggable={false} />
-      <div className="absolute inset-0 overflow-hidden" style={{ width: `${pos}%` }}>
-        <img
-          src={beforeSrc}
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover"
-          style={{ width: ref.current?.clientWidth ? `${ref.current.clientWidth}px` : "100vw", maxWidth: "none" }}
-          draggable={false}
-        />
-      </div>
+      <img
+        src={beforeSrc}
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}
+        draggable={false}
+      />
       <div className="absolute inset-y-0 w-0.5 bg-foreground/90" style={{ left: `${pos}%` }}>
         <div className="absolute top-1/2 left-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background/90 text-xs font-bold shadow-lg backdrop-blur">
           ⇔
