@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { products, categories, type Product } from "@/lib/products";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -17,9 +16,7 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const [cat, setCat] = useState<string>("All");
-  const [ccOpen, setCcOpen] = useState(false);
   const shown = cat === "All" ? products : products.filter((p) => p.category === cat);
-  const ccItems = products.filter((p) => p.category === "CC");
   return (
     <main className="mx-auto max-w-6xl px-6 pb-24">
       <section className="py-20 md:py-28">
@@ -36,14 +33,13 @@ function Index() {
         {categories.map((c) => (
           <button
             key={c}
-            onClick={() => (c === "CC" ? setCcOpen(true) : setCat(c))}
+            onClick={() => setCat(c)}
             className={c === cat ? "chip chip-active" : "chip"}
           >
             {c}
           </button>
         ))}
       </div>
-
 
       <section className="grid gap-6 sm:grid-cols-2">
         {shown.map((p) => (
