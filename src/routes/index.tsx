@@ -92,7 +92,7 @@ function ProductCard({ product: p }: { product: Product }) {
           <p className="eyebrow">{p.category}</p>
           <h2 className="mt-1 font-display text-2xl">{p.name}</h2>
         </div>
-        <span className="price-tag">${p.price}</span>
+        <span className="price-tag">€{p.price}</span>
       </div>
     </Link>
   );

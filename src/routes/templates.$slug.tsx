@@ -11,7 +11,7 @@ export const Route = createFileRoute("/templates/$slug")({
   },
   head: ({ loaderData }) => {
     const title = loaderData ? `${loaderData.product.name} — Frameforge` : "Template not found — Frameforge";
-    const desc = loaderData?.product.blurb ?? "After Effects template";
+    const desc = loaderData?.product.blurb || "After Effects template";
     return {
       meta: [
         { title },
@@ -31,19 +31,24 @@ function ProductPage() {
       <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← All templates</Link>
       <div className="mt-6 grid gap-10 md:grid-cols-[1.4fr_1fr]">
         {p.compareImage ? (
-          <BeforeAfterSlider beforeSrc={p.compareImage} afterSrc={p.image} beforeLabel="No CC" afterLabel="With CC" alt={p.name} />
+          <BeforeAfterSlider beforeSrc={p.compareImage} afterSrc={p.image} beforeLabel="Original" afterLabel="Color corrected" alt={p.name} />
         ) : (
           <img src={p.image} alt={p.name} width={1024} height={640} className="aspect-[16/10] w-full rounded-xl object-cover" />
         )}
         <div>
           <p className="eyebrow">{p.category}</p>
           <h1 className="mt-2 font-display text-4xl md:text-5xl">{p.name}</h1>
-          <p className="mt-4 text-muted-foreground">{p.blurb}</p>
+          {p.blurb && <p className="mt-4 text-muted-foreground">{p.blurb}</p>}
+          {p.description && (
+            <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+              {p.description}
+            </p>
+          )}
           <ul className="mt-6 space-y-2 border-t border-border pt-6 text-sm">
             {p.specs.map((s) => (<li key={s}>— {s}</li>))}
           </ul>
           <div className="mt-8 flex items-center gap-4">
-            <span className="font-display text-4xl">${p.price}</span>
+            <span className="font-display text-4xl">€{p.price}</span>
             <button className="btn-buy" onClick={() => toast("Checkout is coming soon.")}>Buy & download</button>
           </div>
         </div>
