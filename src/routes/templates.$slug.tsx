@@ -30,7 +30,11 @@ function ProductPage() {
     <main className="mx-auto max-w-6xl px-6 py-12">
       <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← All templates</Link>
       <div className="mt-6 grid gap-10 md:grid-cols-[1.4fr_1fr]">
-        <img src={p.image} alt={p.name} width={1024} height={640} className="aspect-[16/10] w-full rounded-xl object-cover" />
+        {p.compareImage ? (
+          <BeforeAfterSlider beforeSrc={p.compareImage} afterSrc={p.image} beforeLabel="No CC" afterLabel="With CC" alt={p.name} />
+        ) : (
+          <img src={p.image} alt={p.name} width={1024} height={640} className="aspect-[16/10] w-full rounded-xl object-cover" />
+        )}
         <div>
           <p className="eyebrow">{p.category}</p>
           <h1 className="mt-2 font-display text-4xl md:text-5xl">{p.name}</h1>
