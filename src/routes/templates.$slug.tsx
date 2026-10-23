@@ -31,7 +31,13 @@ function ProductPage() {
       <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← All templates</Link>
       <div className="mt-6 grid gap-10 md:grid-cols-[1.4fr_1fr]">
         {p.compareImage ? (
-          <BeforeAfterSlider beforeSrc={p.compareImage} afterSrc={p.image} beforeLabel="Original" afterLabel="Color corrected" alt={p.name} />
+          <BeforeAfterSlider
+            beforeSrc={p.compareImage}
+            afterSrc={p.image}
+            beforeLabel="Original"
+            afterLabel={p.slug === "topaz-settings" ? "After Topaz" : "Color corrected"}
+            alt={p.name}
+          />
         ) : (
           <img src={p.image} alt={p.name} width={1024} height={640} className="aspect-[16/10] w-full rounded-xl object-cover" />
         )}
