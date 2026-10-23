@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { products, categories } from "@/lib/products";
+import { useRef, useState } from "react";
+import { products, categories, type Product } from "@/lib/products";
 
 export const Route = createFileRoute("/")({
   head: () => ({
