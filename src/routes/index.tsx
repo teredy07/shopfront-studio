@@ -60,7 +60,7 @@ function ProductCard({ product: p }: { product: Product }) {
         }
       }}
     >
-      <div className="overflow-hidden rounded-lg">
+      <div className="relative overflow-hidden rounded-lg">
         <img
           src={p.image}
           alt={p.name}
@@ -77,7 +77,7 @@ function ProductCard({ product: p }: { product: Product }) {
             loop
             playsInline
             preload="none"
-            className="absolute inset-0 top-3 left-3 aspect-[16/10] w-[calc(100%-1.5rem)] object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+            className="absolute inset-0 aspect-[16/10] w-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
           />
         )}
       </div>
