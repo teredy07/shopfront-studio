@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { products, categories, type Product } from "@/lib/products";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -16,7 +17,9 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const [cat, setCat] = useState<string>("All");
+  const [ccOpen, setCcOpen] = useState(false);
   const shown = cat === "All" ? products : products.filter((p) => p.category === cat);
+  const ccItems = products.filter((p) => p.category === "CC");
   return (
     <main className="mx-auto max-w-6xl px-6 pb-24">
       <section className="py-20 md:py-28">
@@ -31,9 +34,40 @@ function Index() {
 
       <div className="mb-8 flex flex-wrap gap-2">
         {categories.map((c) => (
-          <button key={c} onClick={() => setCat(c)} className={c === cat ? "chip chip-active" : "chip"}>{c}</button>
+          <button
+            key={c}
+            onClick={() => (c === "CC" ? setCcOpen(true) : setCat(c))}
+            className={c === cat ? "chip chip-active" : "chip"}
+          >
+            {c}
+          </button>
         ))}
       </div>
+
+      <Dialog open={ccOpen} onOpenChange={setCcOpen}>
+        <DialogContent className="max-h-[85vh] max-w-4xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display text-3xl">CC — Color Correction</DialogTitle>
+            <DialogDescription>Pick a color pack to view details and buy.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+            {ccItems.map((p) => (
+              <Link key={p.slug} to="/templates/$slug" params={{ slug: p.slug }} className="product-card group" onClick={() => setCcOpen(false)}>
+                <div className="overflow-hidden rounded-lg">
+                  <img src={p.image} alt={p.name} loading="lazy" className="aspect-[16/10] w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                </div>
+                <div className="mt-3 flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-display text-lg">{p.name}</h3>
+                    <p className="text-sm text-muted-foreground">{p.blurb}</p>
+                  </div>
+                  <span className="price-tag">${p.price}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <section className="grid gap-6 sm:grid-cols-2">
         {shown.map((p) => (
