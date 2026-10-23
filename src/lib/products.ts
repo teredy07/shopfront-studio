@@ -3,6 +3,7 @@ import ccImg from "@/assets/cc.jpg.asset.json";
 import t3 from "@/assets/t3.jpg";
 import t4 from "@/assets/t4.jpg";
 import t1Hover from "@/assets/neon-title-hover.mp4.asset.json";
+import noCcImg from "@/assets/no_cc.png.asset.json";
 
 export type Product = {
   slug: string;
@@ -11,6 +12,7 @@ export type Product = {
   price: number;
   image: string;
   hoverVideo?: string;
+  compareImage?: string;
   blurb: string;
   specs: string[];
 };
