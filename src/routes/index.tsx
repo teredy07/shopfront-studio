@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { products } from "@/lib/products";
+import { useState } from "react";
+import { products, categories } from "@/lib/products";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -14,6 +15,8 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const [cat, setCat] = useState<string>("All");
+  const shown = cat === "All" ? products : products.filter((p) => p.category === cat);
   return (
     <main className="mx-auto max-w-6xl px-6 pb-24">
       <section className="py-20 md:py-28">
@@ -26,8 +29,14 @@ function Index() {
         </p>
       </section>
 
+      <div className="mb-8 flex flex-wrap gap-2">
+        {categories.map((c) => (
+          <button key={c} onClick={() => setCat(c)} className={c === cat ? "chip chip-active" : "chip"}>{c}</button>
+        ))}
+      </div>
+
       <section className="grid gap-6 sm:grid-cols-2">
-        {products.map((p) => (
+        {shown.map((p) => (
           <Link key={p.slug} to="/templates/$slug" params={{ slug: p.slug }} className="product-card group">
             <div className="overflow-hidden rounded-lg">
               <img src={p.image} alt={p.name} width={1024} height={640} loading="lazy" className="aspect-[16/10] w-full object-cover transition-transform duration-500 group-hover:scale-105" />
