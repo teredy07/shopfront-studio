@@ -1,11 +1,11 @@
 import type { Variants } from "motion/react";
 
-export const STAGGER_DELAY = 0.09;
-export const REVEAL_DURATION = 0.55;
-export const REVEAL_DISTANCE = 18;
+export const STAGGER_DELAY = 0.08;
+export const REVEAL_DURATION = 0.72;
+export const REVEAL_DISTANCE = 14;
 export const REVEAL_FROM_OPACITY = 0;
 export const REVEAL_TO_OPACITY = 1;
-const REVEAL_EASE = [0.22, 1, 0.36, 1] as const;
+const REVEAL_EASE = [0.16, 1, 0.3, 1] as const;
 
 export const staggerParentVariants: Variants = {
   hidden: {},
