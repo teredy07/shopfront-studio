@@ -1,7 +1,9 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { motion, useReducedMotion } from "motion/react";
 import { products } from "@/lib/products";
 import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
+import { revealVariants, staggerParentVariants } from "@/lib/motion";
 
 export const Route = createFileRoute("/templates/$slug")({
   loader: ({ params }) => {
@@ -10,7 +12,9 @@ export const Route = createFileRoute("/templates/$slug")({
     return { product };
   },
   head: ({ loaderData }) => {
-    const title = loaderData ? `${loaderData.product.name} — Frameforge` : "Template not found — Frameforge";
+    const title = loaderData
+      ? `${loaderData.product.name} — Frameforge`
+      : "Template not found — Frameforge";
     const desc = loaderData?.product.blurb || "After Effects template";
     return {
       meta: [
@@ -26,22 +30,38 @@ export const Route = createFileRoute("/templates/$slug")({
 
 function ProductPage() {
   const { product: p } = Route.useLoaderData();
+  const prefersReducedMotion = useReducedMotion();
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
-      <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← All templates</Link>
-      <div className="mt-6 grid gap-10 md:grid-cols-[1.4fr_1fr]">
-        {p.compareImage ? (
-          <BeforeAfterSlider
-            beforeSrc={p.compareImage}
-            afterSrc={p.image}
-            beforeLabel="Original"
-            afterLabel={p.slug === "topaz-settings" ? "After Topaz" : "Color corrected"}
-            alt={p.name}
-          />
-        ) : (
-          <img src={p.image} alt={p.name} width={1024} height={640} className="aspect-[16/10] w-full rounded-xl object-cover" />
-        )}
-        <div>
+      <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
+        ← All templates
+      </Link>
+      <motion.div
+        className="mt-6 grid gap-10 md:grid-cols-[1.4fr_1fr]"
+        variants={staggerParentVariants}
+        initial={prefersReducedMotion ? false : "hidden"}
+        animate="visible"
+      >
+        <motion.div variants={revealVariants} custom={0}>
+          {p.compareImage ? (
+            <BeforeAfterSlider
+              beforeSrc={p.compareImage}
+              afterSrc={p.image}
+              beforeLabel="Original"
+              afterLabel={p.slug === "topaz-settings" ? "After Topaz" : "Color corrected"}
+              alt={p.name}
+            />
+          ) : (
+            <img
+              src={p.image}
+              alt={p.name}
+              width={1024}
+              height={640}
+              className="aspect-[16/10] w-full rounded-xl object-cover"
+            />
+          )}
+        </motion.div>
+        <motion.div variants={revealVariants} custom={1}>
           <p className="eyebrow">{p.category}</p>
           <h1 className="mt-2 font-display text-4xl md:text-5xl">{p.name}</h1>
           {p.blurb && <p className="mt-4 text-muted-foreground">{p.blurb}</p>}
@@ -51,14 +71,18 @@ function ProductPage() {
             </p>
           )}
           <ul className="mt-6 space-y-2 border-t border-border pt-6 text-sm">
-            {p.specs.map((s) => (<li key={s}>— {s}</li>))}
+            {p.specs.map((s) => (
+              <li key={s}>— {s}</li>
+            ))}
           </ul>
           <div className="mt-8 flex items-center gap-4">
             <span className="font-display text-4xl">€{p.price}</span>
-            <button className="btn-buy" onClick={() => toast("Checkout is coming soon.")}>Buy & download</button>
+            <button className="btn-buy" onClick={() => toast("Checkout is coming soon.")}>
+              Buy & download
+            </button>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </main>
   );
 }
