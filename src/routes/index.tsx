@@ -72,26 +72,38 @@ function Index() {
         ))}
       </motion.div>
 
-      <motion.section
-        key={cat}
-        className="grid gap-6 sm:grid-cols-2"
-        variants={staggerParentVariants}
-        initial={prefersReducedMotion ? false : "hidden"}
-        whileInView="visible"
-        viewport={{ once: true, amount: 0.15 }}
-      >
+      <section key={cat} className="grid gap-6 sm:grid-cols-2">
         {shown.map((p, index) => (
-          <ProductCard key={p.slug} product={p} index={index} />
+          <ProductCard
+            key={p.slug}
+            product={p}
+            index={index}
+            prefersReducedMotion={prefersReducedMotion}
+          />
         ))}
-      </motion.section>
+      </section>
     </main>
   );
 }
 
-function ProductCard({ product: p, index }: { product: Product; index: number }) {
+function ProductCard({
+  product: p,
+  index,
+  prefersReducedMotion,
+}: {
+  product: Product;
+  index: number;
+  prefersReducedMotion: boolean | null;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   return (
-    <motion.div variants={revealVariants} custom={index}>
+    <motion.div
+      variants={revealVariants}
+      custom={index}
+      initial={prefersReducedMotion ? false : "hidden"}
+      whileInView={prefersReducedMotion ? undefined : "visible"}
+      viewport={{ once: false, amount: 0.15 }}
+    >
       <Link
         to="/templates/$slug"
         params={{ slug: p.slug }}
