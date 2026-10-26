@@ -7,12 +7,12 @@ import { revealVariants, staggerParentVariants } from "@/lib/motion";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Frameforge — After Effects Templates" },
+      { title: "cashvibe — After Effects Templates" },
       {
         name: "description",
         content: "Premium After Effects templates: titles, transitions, logo reveals and overlays.",
       },
-      { property: "og:title", content: "Frameforge — After Effects Templates" },
+      { property: "og:title", content: "cashvibe — After Effects Templates" },
       {
         property: "og:description",
         content: "Premium After Effects templates: titles, transitions, logo reveals and overlays.",
@@ -42,7 +42,7 @@ function Index() {
           variants={revealVariants}
           custom={1}
         >
-          Motion that <span className="text-primary">moves</span> people.
+          Motion that <span className="text-gold">moves</span> people.
         </motion.h1>
         <motion.p
           className="mt-6 max-w-xl text-lg text-muted-foreground"
@@ -126,6 +126,11 @@ function ProductCard({
             loading="lazy"
             className="aspect-[16/10] w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex h-2/3 items-end bg-gradient-to-t from-black/95 via-black/55 to-transparent p-5">
+            <span className="font-display text-2xl font-extrabold text-white drop-shadow-md sm:text-3xl">
+              {p.coverTitle ?? p.name}
+            </span>
+          </div>
           {p.hoverVideo && (
             <video
               ref={videoRef}
@@ -143,7 +148,7 @@ function ProductCard({
             <p className="eyebrow">{p.category}</p>
             <h2 className="mt-1 font-display text-2xl">{p.name}</h2>
           </div>
-          <span className="price-tag">€{p.price}</span>
+          <span className="price-tag">{p.price === 0 ? "Free" : `€${p.price.toFixed(2)}`}</span>
         </div>
       </Link>
     </motion.div>

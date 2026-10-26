@@ -120,7 +120,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <Link to="/" className="font-display text-xl">Frameforge<span className="text-primary">.</span></Link>
+        <Link to="/" className="font-display text-2xl font-extrabold text-gold">ca$hvibe</Link>
         <span className="text-sm text-muted-foreground">After Effects templates</span>
       </header>
       <Outlet />

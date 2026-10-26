@@ -13,8 +13,8 @@ export const Route = createFileRoute("/templates/$slug")({
   },
   head: ({ loaderData }) => {
     const title = loaderData
-      ? `${loaderData.product.name} — Frameforge`
-      : "Template not found — Frameforge";
+      ? `${loaderData.product.name} — cashvibe`
+      : "Template not found — cashvibe";
     const desc = loaderData?.product.blurb || "After Effects template";
     return {
       meta: [
@@ -43,12 +43,13 @@ function ProductPage() {
         animate="visible"
       >
         <motion.div variants={revealVariants} custom={0}>
-          {p.compareImage ? (
+          {p.compareImage || p.comparisonImages ? (
             <BeforeAfterSlider
-              beforeSrc={p.compareImage}
-              afterSrc={p.image}
+              beforeSrc={p.comparisonImages?.[0].beforeSrc ?? p.compareImage ?? p.image}
+              afterSrc={p.comparisonImages?.[0].afterSrc ?? p.image}
+              images={p.comparisonImages}
               beforeLabel="Original"
-              afterLabel={p.slug === "topaz-settings" ? "After Topaz" : "Color corrected"}
+              afterLabel={p.slug === "topaz-settings" || p.comparisonImages ? "After Topaz" : "Color corrected"}
               alt={p.name}
             />
           ) : (
@@ -63,7 +64,7 @@ function ProductPage() {
         </motion.div>
         <motion.div variants={revealVariants} custom={1}>
           <p className="eyebrow">{p.category}</p>
-          <h1 className="mt-2 font-display text-4xl md:text-5xl">{p.name}</h1>
+          <h1 className="mt-2 font-display text-3xl md:text-4xl">{p.name}</h1>
           {p.blurb && <p className="mt-4 text-muted-foreground">{p.blurb}</p>}
           {p.description && (
             <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
@@ -76,9 +77,12 @@ function ProductPage() {
             ))}
           </ul>
           <div className="mt-8 flex items-center gap-4">
-            <span className="font-display text-4xl">€{p.price}</span>
-            <button className="btn-buy" onClick={() => toast("Checkout is coming soon.")}>
-              Buy & download
+            <span className="font-display text-4xl">{p.price === 0 ? "Free" : `€${p.price.toFixed(2)}`}</span>
+            <button
+              className="btn-buy"
+              onClick={() => toast(p.price === 0 ? "Free download is coming soon." : "Checkout is coming soon.")}
+            >
+              {p.price === 0 ? "Download free" : "Buy & download"}
             </button>
           </div>
         </motion.div>
