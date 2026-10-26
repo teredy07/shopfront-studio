@@ -101,7 +101,7 @@ function ProductCard({
       variants={revealVariants}
       custom={index}
       initial={prefersReducedMotion ? false : "hidden"}
-      whileInView={prefersReducedMotion ? undefined : "visible"}
+      {...(prefersReducedMotion ? {} : { whileInView: "visible" })}
       viewport={{ once: false, amount: 0.15 }}
     >
       <Link

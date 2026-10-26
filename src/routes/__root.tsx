@@ -8,12 +8,15 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { Star } from "lucide-react";
+import { hasSupabaseConfig, supabase } from "../lib/supabase";
+import { Star, X } from "lucide-react";
+import type { Session } from "@supabase/supabase-js";
+import { toast } from "sonner";
 
 function NotFoundComponent() {
   return (
@@ -116,6 +119,140 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const [authMode, setAuthMode] = useState<"login" | "signup" | null>(null);
+  const [authMessage, setAuthMessage] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authSession, setAuthSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!supabase) {
+      setAuthLoading(false);
+      return;
+    }
+
+    let active = true;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active) {
+        setAuthSession(session);
+        setAuthLoading(false);
+      }
+    });
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (!active) return;
+      if (error) setAuthMessage(error.message);
+      setAuthSession(session);
+      setAuthLoading(false);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) {
+      setAuthMessage("Supabase Auth is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to the environment, then restart the app.");
+      return;
+    }
+
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get("email") ?? "").trim();
+    const password = String(formData.get("password") ?? "");
+    setAuthBusy(true);
+    setAuthMessage("");
+    try {
+      if (authMode === "signup") {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: String(formData.get("name") ?? "").trim() },
+            emailRedirectTo: window.location.origin,
+          },
+        });
+        if (error) throw error;
+        if (data.session) {
+          setAuthSession(data.session);
+          setAuthMode(null);
+        } else {
+          setAuthMessage("Your account was created. Check your email to confirm it, then log in.");
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        setAuthSession(data.session);
+        setAuthMode(null);
+      }
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Unable to complete account request. Please try again.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function handleLogout() {
+    if (!supabase) return;
+    setAuthBusy(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setAuthSession(null);
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Unable to log out. Please try again.");
+      setAuthMode("login");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function handleAvatarChange(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    if (!supabase || !authSession) {
+      toast.error("Log in before changing your profile photo.");
+      return;
+    }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("Choose a JPG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Profile photos must be 5 MB or smaller.");
+      return;
+    }
+
+    setAvatarBusy(true);
+    try {
+      const extension = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
+      const path = `${authSession.user.id}/avatar.${extension}`;
+      const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, {
+        cacheControl: "0",
+        contentType: file.type,
+        upsert: true,
+      });
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+      const avatarUrl = `${publicUrl}?updated=${Date.now()}`;
+      const { data, error } = await supabase.auth.updateUser({ data: { avatar_url: avatarUrl } });
+      if (error) throw error;
+      setAuthSession((current) => current ? { ...current, user: data.user } : current);
+      toast.success("Profile photo updated.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update your profile photo.");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  const authConfigured = hasSupabaseConfig && Boolean(supabase);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -125,10 +262,93 @@ function RootComponent() {
           ca<span className="text-gold">$</span>hvibe
           <Star aria-hidden="true" className="ml-1 h-3.5 w-3.5 animate-pulse fill-gold text-gold drop-shadow-[0_0_5px_var(--gold)]" />
         </Link>
-        <span className="text-sm text-muted-foreground">After Effects templates</span>
+        <div className="flex items-center gap-3 sm:gap-5">
+          <span className="hidden text-sm text-muted-foreground sm:inline">After Effects templates</span>
+          {authLoading ? (
+            <span className="text-sm text-muted-foreground" aria-label="Restoring account session">Loading account…</span>
+          ) : authSession ? (
+            <div className="flex items-center gap-2 sm:gap-4">
+              <div className="flex min-w-0 items-center gap-2">
+                {typeof authSession.user.user_metadata["avatar_url"] === "string" ? (
+                  <img src={authSession.user.user_metadata["avatar_url"]} alt="" className="h-9 w-9 shrink-0 rounded-full border border-primary/50 object-cover" />
+                ) : (
+                  <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-primary/50 bg-card text-sm font-bold text-gold">
+                    {(authSession.user.user_metadata["full_name"] ?? authSession.user.email ?? "C").slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+                <div className="hidden min-w-0 sm:block">
+                  <span className="block max-w-40 truncate text-sm text-muted-foreground">{authSession.user.user_metadata["full_name"] ?? authSession.user.email}</span>
+                  <button type="button" disabled={avatarBusy} className="text-xs font-semibold text-gold transition hover:underline disabled:opacity-60" onClick={() => avatarInputRef.current?.click()}>
+                    {avatarBusy ? "Saving photo…" : "Change photo"}
+                  </button>
+                </div>
+                <button type="button" aria-label="Change profile photo" title="Change profile photo" disabled={avatarBusy} className="rounded-full p-2 text-xs font-semibold text-gold transition hover:bg-card disabled:opacity-60 sm:hidden" onClick={() => avatarInputRef.current?.click()}>
+                  {avatarBusy ? "…" : "Edit"}
+                </button>
+                <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" aria-label="Choose profile photo" onChange={handleAvatarChange} />
+              </div>
+              <button type="button" disabled={authBusy} className="text-sm font-semibold text-foreground transition hover:text-gold disabled:opacity-60" onClick={handleLogout}>Log out</button>
+            </div>
+          ) : (
+            <>
+              <button type="button" className="text-sm font-semibold text-foreground transition hover:text-gold" onClick={() => { setAuthMessage(""); setAuthMode("login"); }}>
+                Log in
+              </button>
+              <button type="button" className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary/90" onClick={() => { setAuthMessage(""); setAuthMode("signup"); }}>
+                Sign up
+              </button>
+            </>
+          )}
+        </div>
       </header>
       <Outlet />
       <Toaster />
+      {authMode && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => { if (event.target === event.currentTarget && !authBusy) setAuthMode(null); }}
+        >
+          <section role="dialog" aria-modal="true" aria-labelledby="auth-title" className="relative w-full max-w-md rounded-2xl border border-border bg-card p-7 shadow-2xl sm:p-9">
+            <button type="button" aria-label="Close" disabled={authBusy} className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50" onClick={() => setAuthMode(null)}>
+              <X size={18} />
+            </button>
+            <p className="eyebrow">CASHVIBE ACCOUNT</p>
+            <h2 id="auth-title" className="mt-2 font-display text-3xl font-extrabold text-foreground">
+              {authMode === "login" ? "Welcome back" : "Create your account"}
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {authMode === "login" ? "Log in to your Cashvibe account." : "Sign up for a Cashvibe account."}
+            </p>
+            <form className="mt-7 space-y-4" onSubmit={handleAuthSubmit}>
+              {authMode === "signup" && (
+                <label className="block text-sm font-semibold text-foreground">
+                  Name
+                  <input name="name" autoComplete="name" required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="Your name" />
+                </label>
+              )}
+              <label className="block text-sm font-semibold text-foreground">
+                Email
+                <input type="email" name="email" autoComplete="email" required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="you@example.com" />
+              </label>
+              <label className="block text-sm font-semibold text-foreground">
+                Password
+                <input type="password" name="password" autoComplete={authMode === "login" ? "current-password" : "new-password"} minLength={8} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="At least 8 characters" />
+              </label>
+              <button type="submit" disabled={authBusy} className="w-full rounded-full bg-primary px-5 py-3 font-bold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60">
+                {authBusy ? "Please wait…" : authMode === "login" ? "Log in" : "Create account"}
+              </button>
+            </form>
+            {authMessage && <p role="status" className="mt-4 rounded-xl border border-border bg-background p-3 text-sm text-muted-foreground">{authMessage}</p>}
+            {!authConfigured && <p className="mt-3 text-xs text-muted-foreground">Add the Supabase project URL and public key to enable account access.</p>}
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              {authMode === "login" ? "New to Cashvibe?" : "Already have an account?"}{" "}
+              <button type="button" disabled={authBusy} className="font-bold text-gold hover:underline disabled:opacity-50" onClick={() => { setAuthMessage(""); setAuthMode(authMode === "login" ? "signup" : "login"); }}>
+                {authMode === "login" ? "Sign up" : "Log in"}
+              </button>
+            </p>
+          </section>
+        </div>
+      )}
     </QueryClientProvider>
   );
 }

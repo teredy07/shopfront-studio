@@ -16,6 +16,8 @@ export function PreviewCarousel({ slides, alt }: Props) {
   const [index, setIndex] = useState(0);
   const slide = slides[index];
 
+  if (!slide) return null;
+
   return (
     <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-black">
       {slide.type === "video" ? (

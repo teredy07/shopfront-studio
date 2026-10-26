@@ -53,9 +53,9 @@ function ProductPage() {
             />
           ) : p.compareImage || p.comparisonImages ? (
             <BeforeAfterSlider
-              beforeSrc={p.comparisonImages?.[0].beforeSrc ?? p.compareImage ?? p.image}
-              afterSrc={p.comparisonImages?.[0].afterSrc ?? p.image}
-              images={p.comparisonImages}
+              beforeSrc={p.comparisonImages?.[0]?.beforeSrc ?? p.compareImage ?? p.image}
+              afterSrc={p.comparisonImages?.[0]?.afterSrc ?? p.image}
+              {...(p.comparisonImages ? { images: p.comparisonImages } : {})}
               beforeLabel="Original"
               afterLabel={p.slug === "topaz-settings" || p.comparisonImages ? "After Topaz" : "Color corrected"}
               alt={p.name}
