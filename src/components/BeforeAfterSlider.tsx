@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { StarBurstButton } from "@/components/StarBurstButton";
 
 type Props = {
   beforeSrc: string;
@@ -65,22 +66,24 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, images, beforeLabel = "
       </div>
       {images && images.length > 1 && (
         <>
-          <button
+          <StarBurstButton
             type="button"
+            position="absolute"
             aria-label="Previous comparison image"
             className="absolute top-1/2 left-3 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-primary/70 bg-primary text-primary-foreground shadow-lg transition hover:bg-primary/90"
             onClick={() => setImageIndex((index) => (index - 1 + images.length) % images.length)}
           >
             <ChevronLeft aria-hidden="true" size={24} strokeWidth={2.75} />
-          </button>
-          <button
+          </StarBurstButton>
+          <StarBurstButton
             type="button"
+            position="absolute"
             aria-label="Next comparison image"
             className="absolute top-1/2 right-3 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-primary/70 bg-primary text-primary-foreground shadow-lg transition hover:bg-primary/90"
             onClick={() => setImageIndex((index) => (index + 1) % images.length)}
           >
             <ChevronRight aria-hidden="true" size={24} strokeWidth={2.75} />
-          </button>
+          </StarBurstButton>
         </>
       )}
     </div>

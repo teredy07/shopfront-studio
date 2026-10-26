@@ -3,6 +3,8 @@ import { toast } from "sonner";
 import { motion, useReducedMotion } from "motion/react";
 import { products } from "@/lib/products";
 import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
+import { PreviewCarousel } from "@/components/PreviewCarousel";
+import { StarBurstButton } from "@/components/StarBurstButton";
 import { revealVariants, staggerParentVariants } from "@/lib/motion";
 
 export const Route = createFileRoute("/templates/$slug")({
@@ -31,6 +33,7 @@ export const Route = createFileRoute("/templates/$slug")({
 function ProductPage() {
   const { product: p } = Route.useLoaderData();
   const prefersReducedMotion = useReducedMotion();
+  const plainSpecsStart = p.specs.indexOf("Plugins needed:");
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
       <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
@@ -43,7 +46,12 @@ function ProductPage() {
         animate="visible"
       >
         <motion.div variants={revealVariants} custom={0}>
-          {p.compareImage || p.comparisonImages ? (
+          {p.previewSlides || p.previewVideo ? (
+            <PreviewCarousel
+              slides={p.previewSlides ?? [{ type: "image", src: p.image }, { type: "video", src: p.previewVideo! }]}
+              alt={p.name}
+            />
+          ) : p.compareImage || p.comparisonImages ? (
             <BeforeAfterSlider
               beforeSrc={p.comparisonImages?.[0].beforeSrc ?? p.compareImage ?? p.image}
               afterSrc={p.comparisonImages?.[0].afterSrc ?? p.image}
@@ -72,18 +80,20 @@ function ProductPage() {
             </p>
           )}
           <ul className="mt-6 space-y-2 border-t border-border pt-6 text-sm">
-            {p.specs.map((s) => (
-              <li key={s}>— {s}</li>
+            {p.specs.map((s, index) => (
+              <li key={s}>
+                {s === "Softwares:" || (plainSpecsStart >= 0 && index >= plainSpecsStart) ? s : `- ${s}`}
+              </li>
             ))}
           </ul>
           <div className="mt-8 flex items-center gap-4">
             <span className="font-display text-4xl">{p.price === 0 ? "Free" : `€${p.price.toFixed(2)}`}</span>
-            <button
+            <StarBurstButton
               className="btn-buy"
               onClick={() => toast(p.price === 0 ? "Free download is coming soon." : "Checkout is coming soon.")}
             >
               {p.price === 0 ? "Download free" : "Buy & download"}
-            </button>
+            </StarBurstButton>
           </div>
         </motion.div>
       </motion.div>

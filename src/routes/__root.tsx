@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { Star } from "lucide-react";
 
 function NotFoundComponent() {
   return (
@@ -120,7 +121,10 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <Link to="/" className="font-display text-2xl font-extrabold text-gold">ca$hvibe</Link>
+        <Link to="/" className="brand-shine inline-flex items-center gap-1 font-display text-2xl font-extrabold text-foreground">
+          ca<span className="text-gold">$</span>hvibe
+          <Star aria-hidden="true" className="ml-1 h-3.5 w-3.5 animate-pulse fill-gold text-gold drop-shadow-[0_0_5px_var(--gold)]" />
+        </Link>
         <span className="text-sm text-muted-foreground">After Effects templates</span>
       </header>
       <Outlet />
