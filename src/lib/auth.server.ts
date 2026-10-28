@@ -195,6 +195,60 @@ function hashEmailCode(challengeId: string, code: string): string {
   return createHash("sha256").update(`${challengeId}:${code}`).digest("hex");
 }
 
+function emailCodeHtml(code: string, purpose: AuthPurpose): string {
+  const isPasswordReset = purpose === "password-reset";
+  const heading = isPasswordReset ? "Reset your password" : "Your verification code";
+  const instruction = isPasswordReset
+    ? "Use this one-time code to continue resetting your Cashvibe password."
+    : "Enter this one-time code on Cashvibe to continue.";
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="supported-color-schemes" content="dark">
+    <title>${heading}</title>
+    <style>
+      :root { color-scheme: dark; supported-color-schemes: dark; }
+      @media (max-width: 520px) {
+        .email-card { padding: 28px 22px !important; }
+        .code-value { font-size: 36px !important; letter-spacing: 8px !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background-color:#030b06;color:#f5f2d9;font-family:Arial,Helvetica,sans-serif;-webkit-text-size-adjust:100%">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background-color:#030b06">
+      <tr>
+        <td align="center" style="padding:38px 16px">
+          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background-color:#07150c;border:1px solid #27402e;border-radius:24px;overflow:hidden">
+            <tr>
+              <td class="email-card" style="padding:40px 42px 34px">
+                <div style="margin:0 0 34px;font-family:Arial,'Arial Black',Helvetica,sans-serif;font-size:28px;font-weight:900;letter-spacing:-1.5px;line-height:1;color:#f5f2d9">
+                  <span style="color:#f5f2d9">ca</span><span style="color:#d7a936">$</span><span style="color:#f5f2d9">hvibe</span><span style="margin-left:7px;color:#d7a936;font-size:18px;vertical-align:3px">★</span>
+                </div>
+                <p style="margin:0 0 12px;color:#d7a936;font-size:12px;font-weight:700;letter-spacing:3px;line-height:1.5;text-transform:uppercase">Account access</p>
+                <h1 style="margin:0 0 14px;color:#f5f2d9;font-size:30px;font-weight:800;line-height:1.2">${heading}</h1>
+                <p style="margin:0 0 28px;color:#b3b8aa;font-size:16px;line-height:1.65">${instruction} This code expires in <strong style="color:#f5f2d9">10 minutes</strong>.</p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background-color:#0b1d11;border:1px solid #31533a;border-radius:18px">
+                  <tr>
+                    <td align="center" class="code-value" style="padding:22px 12px;color:#d7a936;font-family:Arial,Helvetica,sans-serif;font-size:44px;font-weight:800;letter-spacing:12px;line-height:1.25">${code}</td>
+                  </tr>
+                </table>
+                <p style="margin:24px 0 0;color:#9da595;font-size:14px;line-height:1.6">If you didn't request this code, you can safely ignore this email.</p>
+                <div style="height:1px;margin:28px 0 18px;background-color:#213528;line-height:1px">&nbsp;</div>
+                <p style="margin:0;color:#788174;font-size:12px;line-height:1.5">Cashvibe · <a href="https://cashvibe.shop" style="color:#d7a936;text-decoration:none">cashvibe.shop</a></p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
 async function sendEmailCode(email: string, code: string, purpose: AuthPurpose): Promise<void> {
   const apiKey = process.env["RESEND_API_KEY"]?.trim();
   if (!apiKey) {
@@ -214,7 +268,7 @@ async function sendEmailCode(email: string, code: string, purpose: AuthPurpose):
       text: purpose === "password-reset"
         ? `Your Cashvibe password reset code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore this email.`
         : `Your Cashvibe verification code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore this email.`,
-      html: `<div style="font-family:Arial,sans-serif;color:#f5f2d9;background:#06130c;padding:32px;border-radius:16px"><p style="color:#d7a936;letter-spacing:3px">CASHVIBE</p><h1 style="font-size:24px">${purpose === "password-reset" ? "Reset your password" : "Your verification code"}</h1><p>${purpose === "password-reset" ? "Enter this code to choose a new password." : "Enter this code to continue."} It expires in 10 minutes.</p><p style="font-size:36px;font-weight:700;letter-spacing:10px;color:#d7a936">${code}</p><p style="color:#a7ad9d">If you didn't request this, you can ignore this email.</p></div>`,
+      html: emailCodeHtml(code, purpose),
     }),
   });
 
