@@ -13,9 +13,15 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type Rea
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { hasSupabaseConfig, supabase } from "../lib/supabase";
+import {
+  getCurrentAccountFn,
+  logInAccountFn,
+  logOutAccountFn,
+  signUpAccountFn,
+  updateAvatarFn,
+  type AccountUser,
+} from "../lib/auth.functions";
 import { Star, X } from "lucide-react";
-import type { Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
 function NotFoundComponent() {
@@ -122,44 +128,31 @@ function RootComponent() {
   const [authMode, setAuthMode] = useState<"login" | "signup" | null>(null);
   const [authMessage, setAuthMessage] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
-  const [authSession, setAuthSession] = useState<Session | null>(null);
+  const [authUser, setAuthUser] = useState<AccountUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!supabase) {
-      setAuthLoading(false);
-      return;
-    }
-
     let active = true;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (active) {
-        setAuthSession(session);
-        setAuthLoading(false);
-      }
-    });
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (!active) return;
-      if (error) setAuthMessage(error.message);
-      setAuthSession(session);
-      setAuthLoading(false);
-    });
+    getCurrentAccountFn()
+      .then((user) => {
+        if (active) setAuthUser(user);
+      })
+      .catch((error: unknown) => {
+        if (active) setAuthMessage(error instanceof Error ? error.message : "Could not reach the account database.");
+      })
+      .finally(() => {
+        if (active) setAuthLoading(false);
+      });
 
     return () => {
       active = false;
-      subscription.unsubscribe();
     };
   }, []);
 
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase) {
-      setAuthMessage("Supabase Auth is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to the environment, then restart the app.");
-      return;
-    }
-
     const formData = new FormData(event.currentTarget);
     const email = String(formData.get("email") ?? "").trim();
     const password = String(formData.get("password") ?? "");
@@ -167,27 +160,19 @@ function RootComponent() {
     setAuthMessage("");
     try {
       if (authMode === "signup") {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: String(formData.get("name") ?? "").trim() },
-            emailRedirectTo: window.location.origin,
+        const user = await signUpAccountFn({
+          data: {
+            name: String(formData.get("name") ?? "").trim(),
+            email,
+            password,
           },
         });
-        if (error) throw error;
-        if (data.session) {
-          setAuthSession(data.session);
-          setAuthMode(null);
-        } else {
-          setAuthMessage("Your account was created. Check your email to confirm it, then log in.");
-        }
+        setAuthUser(user);
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        setAuthSession(data.session);
-        setAuthMode(null);
+        const user = await logInAccountFn({ data: { email, password } });
+        setAuthUser(user);
       }
+      setAuthMode(null);
     } catch (error) {
       setAuthMessage(error instanceof Error ? error.message : "Unable to complete account request. Please try again.");
     } finally {
@@ -196,12 +181,10 @@ function RootComponent() {
   }
 
   async function handleLogout() {
-    if (!supabase) return;
     setAuthBusy(true);
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      setAuthSession(null);
+      await logOutAccountFn();
+      setAuthUser(null);
     } catch (error) {
       setAuthMessage(error instanceof Error ? error.message : "Unable to log out. Please try again.");
       setAuthMode("login");
@@ -215,7 +198,7 @@ function RootComponent() {
     const file = input.files?.[0];
     input.value = "";
     if (!file) return;
-    if (!supabase || !authSession) {
+    if (!authUser) {
       toast.error("Log in before changing your profile photo.");
       return;
     }
@@ -230,20 +213,18 @@ function RootComponent() {
 
     setAvatarBusy(true);
     try {
-      const extension = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
-      const path = `${authSession.user.id}/avatar.${extension}`;
-      const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, {
-        cacheControl: "0",
-        contentType: file.type,
-        upsert: true,
-      });
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
-      const avatarUrl = `${publicUrl}?updated=${Date.now()}`;
-      const { data, error } = await supabase.auth.updateUser({ data: { avatar_url: avatarUrl } });
-      if (error) throw error;
-      setAuthSession((current) => current ? { ...current, user: data.user } : current);
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Could not prepare the profile photo.");
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close();
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+      const user = await updateAvatarFn({ data: { dataUrl } });
+      setAuthUser(user);
       toast.success("Profile photo updated.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not update your profile photo.");
@@ -251,8 +232,6 @@ function RootComponent() {
       setAvatarBusy(false);
     }
   }
-
-  const authConfigured = hasSupabaseConfig && Boolean(supabase);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -266,18 +245,18 @@ function RootComponent() {
           <span className="hidden text-sm text-muted-foreground sm:inline">After Effects templates</span>
           {authLoading ? (
             <span className="text-sm text-muted-foreground" aria-label="Restoring account session">Loading account…</span>
-          ) : authSession ? (
+          ) : authUser ? (
             <div className="flex items-center gap-2 sm:gap-4">
               <div className="flex min-w-0 items-center gap-2">
-                {typeof authSession.user.user_metadata["avatar_url"] === "string" ? (
-                  <img src={authSession.user.user_metadata["avatar_url"]} alt="" className="h-9 w-9 shrink-0 rounded-full border border-primary/50 object-cover" />
+                {authUser.avatarDataUrl ? (
+                  <img src={authUser.avatarDataUrl} alt="" className="h-9 w-9 shrink-0 rounded-full border border-primary/50 object-cover" />
                 ) : (
                   <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-primary/50 bg-card text-sm font-bold text-gold">
-                    {(authSession.user.user_metadata["full_name"] ?? authSession.user.email ?? "C").slice(0, 1).toUpperCase()}
+                    (authUser.fullName || authUser.email || "C").slice(0, 1).toUpperCase()
                   </span>
                 )}
                 <div className="hidden min-w-0 sm:block">
-                  <span className="block max-w-40 truncate text-sm text-muted-foreground">{authSession.user.user_metadata["full_name"] ?? authSession.user.email}</span>
+                  <span className="block max-w-40 truncate text-sm text-muted-foreground">{authUser.fullName || authUser.email}</span>
                   <button type="button" disabled={avatarBusy} className="text-xs font-semibold text-gold transition hover:underline disabled:opacity-60" onClick={() => avatarInputRef.current?.click()}>
                     {avatarBusy ? "Saving photo…" : "Change photo"}
                   </button>
@@ -291,10 +270,10 @@ function RootComponent() {
             </div>
           ) : (
             <>
-              <button type="button" className="text-sm font-semibold text-foreground transition hover:text-gold" onClick={() => { setAuthMessage(""); setAuthMode("login"); }}>
+              <button type="button" className="text-sm font-semibold text-foreground transition hover:text-gold" onClick={() => setAuthMode("login")}>
                 Log in
               </button>
-              <button type="button" className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary/90" onClick={() => { setAuthMessage(""); setAuthMode("signup"); }}>
+              <button type="button" className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary/90" onClick={() => setAuthMode("signup")}>
                 Sign up
               </button>
             </>
@@ -339,7 +318,6 @@ function RootComponent() {
               </button>
             </form>
             {authMessage && <p role="status" className="mt-4 rounded-xl border border-border bg-background p-3 text-sm text-muted-foreground">{authMessage}</p>}
-            {!authConfigured && <p className="mt-3 text-xs text-muted-foreground">Add the Supabase project URL and public key to enable account access.</p>}
             <p className="mt-6 text-center text-sm text-muted-foreground">
               {authMode === "login" ? "New to Cashvibe?" : "Already have an account?"}{" "}
               <button type="button" disabled={authBusy} className="font-bold text-gold hover:underline disabled:opacity-50" onClick={() => { setAuthMessage(""); setAuthMode(authMode === "login" ? "signup" : "login"); }}>
