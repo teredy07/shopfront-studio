@@ -34,3 +34,10 @@ must not use the `VITE_` prefix.
 To create the hosted database with the Turso CLI, run `turso db create cashvibe-auth`, then copy the
 URL from `turso db show cashvibe-auth --url` and create a token with
 `turso db tokens create cashvibe-auth`. The app creates its account tables automatically on first use.
+
+## Email verification
+
+Sign-up and every login require a 6-digit email code. Email delivery uses Resend and sends from
+`Cashvibe <noreply@cashvibe.shop>`. Verify `cashvibe.shop` in Resend, add the DNS records Resend
+provides at the domain's DNS provider, and add `RESEND_API_KEY` to Vercel's Production environment.
+Redeploy after adding the key. Keep the API key server-only; never use a `VITE_` prefix.
