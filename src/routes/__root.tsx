@@ -388,7 +388,7 @@ function RootComponent() {
                     ? "Enter your email and we'll send a reset code if an account matches."
                     : authMode === "login" ? "Log in to your Cashvibe account. We'll email you a verification code." : "Sign up for a Cashvibe account. We'll email you a verification code."}
             </p>
-            <form autoComplete="off" className="mt-7 space-y-4" onSubmit={handleAuthSubmit}>
+            <form key={`${authMode}-${emailChallenge?.purpose ?? "credentials"}`} autoComplete="off" className="mt-7 space-y-4" onSubmit={handleAuthSubmit}>
               {authMode === "new-password" ? (
                 <>
                   <label className="block text-sm font-semibold text-foreground">
