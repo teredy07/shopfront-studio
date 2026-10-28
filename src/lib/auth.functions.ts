@@ -1,12 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-export type { AccountUser } from "./auth.server";
+export type { AccountUser, EmailAuthChallenge } from "./auth.server";
 
 const credentialsSchema = z.object({
   email: z.string().trim().email().max(254),
   password: z.string().min(1).max(128),
 });
+
+const challengeSchema = z.object({ challengeId: z.string().uuid() });
 
 export const getCurrentAccountFn = createServerFn({ method: "GET" }).handler(async () => {
   const { getCurrentAccount } = await import("./auth.server");
@@ -25,6 +27,20 @@ export const logInAccountFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { logInAccount } = await import("./auth.server");
     return logInAccount(data);
+  });
+
+export const verifyEmailCodeFn = createServerFn({ method: "POST" })
+  .validator(challengeSchema.extend({ code: z.string().regex(/^\d{6}$/) }))
+  .handler(async ({ data }) => {
+    const { verifyEmailCode } = await import("./auth.server");
+    return verifyEmailCode(data.challengeId, data.code);
+  });
+
+export const resendEmailCodeFn = createServerFn({ method: "POST" })
+  .validator(challengeSchema)
+  .handler(async ({ data }) => {
+    const { resendEmailCode } = await import("./auth.server");
+    return resendEmailCode(data.challengeId);
   });
 
 export const logOutAccountFn = createServerFn({ method: "POST" }).handler(async () => {

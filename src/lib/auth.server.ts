@@ -1,5 +1,5 @@
 import { createClient, type Client, type Row } from "@libsql/client";
-import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomInt, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server";
@@ -11,9 +11,20 @@ export type AccountUser = {
   avatarDataUrl: string | null;
 };
 
+export type EmailAuthChallenge = {
+  challengeId: string;
+  email: string;
+  expiresAt: number;
+  resendAvailableAt: number;
+};
+
 const SESSION_LIFETIME_SECONDS = 60 * 60 * 24 * 30;
 const MAX_AVATAR_BYTES = 512 * 1024;
 const PASSWORD_KEY_LENGTH = 64;
+const EMAIL_CODE_LIFETIME_MS = 10 * 60 * 1000;
+const EMAIL_CODE_RESEND_DELAY_MS = 60 * 1000;
+const EMAIL_CODE_MAX_ATTEMPTS = 5;
+const EMAIL_CODE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const sessionCookie = process.env["NODE_ENV"] === "production"
   ? "__Host-cashvibe_session"
   : "cashvibe_session";
@@ -82,6 +93,25 @@ async function ensureSchema(): Promise<Client> {
         )
       `);
       await db.execute("CREATE INDEX IF NOT EXISTS sessions_expires_at_idx ON sessions(expires_at)");
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS email_verification_challenges (
+          id TEXT PRIMARY KEY,
+          email TEXT NOT NULL COLLATE NOCASE,
+          purpose TEXT NOT NULL,
+          code_hash TEXT NOT NULL,
+          full_name TEXT,
+          password_salt TEXT,
+          password_hash TEXT,
+          user_id TEXT,
+          created_at INTEGER NOT NULL,
+          expires_at INTEGER NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0
+        )
+      `);
+      await db.execute(`
+        CREATE UNIQUE INDEX IF NOT EXISTS email_challenge_email_purpose_idx
+        ON email_verification_challenges(email, purpose)
+      `);
     })().catch((error: unknown) => {
       schemaSetup = undefined;
       throw error;
@@ -143,11 +173,111 @@ export async function getCurrentAccount(): Promise<AccountUser | null> {
   return accountFromRow(result.rows[0]);
 }
 
+type AuthPurpose = "signup" | "login";
+type ChallengePayload = {
+  fullName?: string;
+  passwordSalt?: string;
+  passwordHash?: string;
+  userId?: string;
+};
+
+function hashEmailCode(challengeId: string, code: string): string {
+  return createHash("sha256").update(`${challengeId}:${code}`).digest("hex");
+}
+
+async function sendEmailCode(email: string, code: string): Promise<void> {
+  const apiKey = process.env["RESEND_API_KEY"]?.trim();
+  if (!apiKey) {
+    throw new Error("Email verification is not configured. Add RESEND_API_KEY to Vercel, then redeploy.");
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Cashvibe <noreply@cashvibe.shop>",
+      to: [email],
+      subject: "Your Cashvibe verification code",
+      text: `Your Cashvibe verification code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore this email.`,
+      html: `<div style="font-family:Arial,sans-serif;color:#f5f2d9;background:#06130c;padding:32px;border-radius:16px"><p style="color:#d7a936;letter-spacing:3px">CASHVIBE</p><h1 style="font-size:24px">Your verification code</h1><p>Enter this code to continue. It expires in 10 minutes.</p><p style="font-size:36px;font-weight:700;letter-spacing:10px;color:#d7a936">${code}</p><p style="color:#a7ad9d">If you didn't request this, you can ignore this email.</p></div>`,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("We couldn't send your verification email. Check that the Resend key is valid and cashvibe.shop is verified.");
+  }
+}
+
+function challengeResult(row: Row): EmailAuthChallenge {
+  return {
+    challengeId: String(row["id"]),
+    email: String(row["email"]),
+    expiresAt: Number(row["expires_at"]),
+    resendAvailableAt: Number(row["created_at"]) + EMAIL_CODE_RESEND_DELAY_MS,
+  };
+}
+
+async function createEmailChallenge(
+  db: Client,
+  email: string,
+  purpose: AuthPurpose,
+  payload: ChallengePayload,
+  reuseId?: string,
+): Promise<EmailAuthChallenge> {
+  const now = Date.now();
+  const existing = await db.execute({
+    sql: "SELECT id, email, created_at, expires_at FROM email_verification_challenges WHERE email = ? AND purpose = ? LIMIT 1",
+    args: [email, purpose],
+  });
+  const existingRow = existing.rows[0];
+  if (!reuseId && existingRow && now < Number(existingRow["created_at"]) + EMAIL_CODE_RESEND_DELAY_MS) {
+    await db.execute({
+      sql: `UPDATE email_verification_challenges
+            SET full_name = ?, password_salt = ?, password_hash = ?, user_id = ?
+            WHERE id = ?`,
+      args: [payload.fullName ?? null, payload.passwordSalt ?? null, payload.passwordHash ?? null, payload.userId ?? null, String(existingRow["id"])],
+    });
+    return challengeResult(existingRow);
+  }
+
+  const challengeId = reuseId ?? randomUUID();
+  const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
+  await db.execute({
+    sql: "DELETE FROM email_verification_challenges WHERE email = ? AND purpose = ?",
+    args: [email, purpose],
+  });
+  await db.execute({
+    sql: `INSERT INTO email_verification_challenges
+          (id, email, purpose, code_hash, full_name, password_salt, password_hash, user_id, created_at, expires_at, attempts)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+    args: [challengeId, email, purpose, hashEmailCode(challengeId, code), payload.fullName ?? null,
+      payload.passwordSalt ?? null, payload.passwordHash ?? null, payload.userId ?? null,
+      now, now + EMAIL_CODE_LIFETIME_MS],
+  });
+
+  try {
+    await sendEmailCode(email, code);
+  } catch (error) {
+    await db.execute({ sql: "DELETE FROM email_verification_challenges WHERE id = ?", args: [challengeId] });
+    throw error;
+  }
+
+  return {
+    challengeId,
+    email,
+    expiresAt: now + EMAIL_CODE_LIFETIME_MS,
+    resendAvailableAt: now + EMAIL_CODE_RESEND_DELAY_MS,
+  };
+}
+
 export async function signUpAccount(input: {
   name: string;
   email: string;
   password: string;
-}): Promise<AccountUser> {
+}): Promise<EmailAuthChallenge> {
   const db = await ensureSchema();
   const name = input.name.trim();
   const email = input.email.trim().toLowerCase();
@@ -155,38 +285,19 @@ export async function signUpAccount(input: {
   if (input.password.length < 8 || input.password.length > 128) {
     throw new Error("Use a password between 8 and 128 characters.");
   }
+  const existingUser = await db.execute({ sql: "SELECT id FROM users WHERE email = ? LIMIT 1", args: [email] });
+  if (existingUser.rows[0]) throw new Error("An account with this email already exists. Log in instead.");
 
   const salt = randomBytes(16).toString("hex");
   const passwordHash = (await derivePassword(input.password, salt)).toString("hex");
-  const user: AccountUser = {
-    id: randomUUID(),
-    email,
-    fullName: name,
-    avatarDataUrl: null,
-  };
-
-  try {
-    await db.execute({
-      sql: `INSERT INTO users (id, email, full_name, password_salt, password_hash, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)`,
-      args: [user.id, user.email, user.fullName, salt, passwordHash, Date.now()],
-    });
-  } catch (error) {
-    if (String(error).toLowerCase().includes("unique") || String(error).toLowerCase().includes("constraint")) {
-      throw new Error("An account with this email already exists. Log in instead.");
-    }
-    throw error;
-  }
-
-  await startSession(user.id);
-  return user;
+  return createEmailChallenge(db, email, "signup", { fullName: name, passwordSalt: salt, passwordHash });
 }
 
-export async function logInAccount(input: { email: string; password: string }): Promise<AccountUser> {
+export async function logInAccount(input: { email: string; password: string }): Promise<EmailAuthChallenge> {
   const db = await ensureSchema();
   const email = input.email.trim().toLowerCase();
   const result = await db.execute({
-    sql: `SELECT id, email, full_name, password_salt, password_hash, avatar_data_url
+    sql: `SELECT id, email, full_name, password_salt, password_hash
           FROM users WHERE email = ? LIMIT 1`,
     args: [email],
   });
@@ -198,7 +309,93 @@ export async function logInAccount(input: { email: string; password: string }): 
   const passwordMatches = expectedHash.length === actualHash.length && timingSafeEqual(expectedHash, actualHash);
   if (!row || !passwordMatches) throw new Error("Email or password is incorrect.");
 
-  const user = accountFromRow(row);
+  return createEmailChallenge(db, email, "login", { userId: String(row["id"]) });
+}
+
+export async function resendEmailCode(challengeId: string): Promise<EmailAuthChallenge> {
+  const db = await ensureSchema();
+  const result = await db.execute({
+    sql: "SELECT * FROM email_verification_challenges WHERE id = ? LIMIT 1",
+    args: [challengeId],
+  });
+  const row = result.rows[0];
+  if (!row || Date.now() - Number(row["created_at"]) > EMAIL_CODE_MAX_AGE_MS) {
+    throw new Error("This verification request expired. Start again to get a new code.");
+  }
+  const waitMs = Number(row["created_at"]) + EMAIL_CODE_RESEND_DELAY_MS - Date.now();
+  if (waitMs > 0) throw new Error(`Please wait ${Math.ceil(waitMs / 1000)} seconds before requesting another code.`);
+
+  const payload: ChallengePayload = {};
+  if (typeof row["full_name"] === "string") payload.fullName = row["full_name"];
+  if (typeof row["password_salt"] === "string") payload.passwordSalt = row["password_salt"];
+  if (typeof row["password_hash"] === "string") payload.passwordHash = row["password_hash"];
+  if (typeof row["user_id"] === "string") payload.userId = row["user_id"];
+  return createEmailChallenge(db, String(row["email"]), String(row["purpose"]) as AuthPurpose, payload, challengeId);
+}
+
+export async function verifyEmailCode(challengeId: string, code: string): Promise<AccountUser> {
+  const db = await ensureSchema();
+  const result = await db.execute({
+    sql: "SELECT * FROM email_verification_challenges WHERE id = ? LIMIT 1",
+    args: [challengeId],
+  });
+  const row = result.rows[0];
+  if (!row) throw new Error("That verification code expired or was already used. Start again to get a new one.");
+  if (Date.now() > Number(row["expires_at"])) {
+    await db.execute({ sql: "DELETE FROM email_verification_challenges WHERE id = ?", args: [challengeId] });
+    throw new Error("That verification code expired. Start again to get a new one.");
+  }
+  if (!/^\d{6}$/.test(code)) throw new Error("Enter the 6-digit code from your email.");
+
+  const expected = Buffer.from(String(row["code_hash"]), "hex");
+  const actual = Buffer.from(hashEmailCode(challengeId, code), "hex");
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+    const attempts = Number(row["attempts"]) + 1;
+    if (attempts >= EMAIL_CODE_MAX_ATTEMPTS) {
+      await db.execute({ sql: "DELETE FROM email_verification_challenges WHERE id = ?", args: [challengeId] });
+      throw new Error("Too many incorrect codes. Start again to request a new one.");
+    }
+    await db.execute({ sql: "UPDATE email_verification_challenges SET attempts = ? WHERE id = ?", args: [attempts, challengeId] });
+    throw new Error(`That code isn't correct. ${EMAIL_CODE_MAX_ATTEMPTS - attempts} attempts remaining.`);
+  }
+
+  const consumed = await db.execute({ sql: "DELETE FROM email_verification_challenges WHERE id = ?", args: [challengeId] });
+  if (consumed.rowsAffected !== 1) throw new Error("That verification code was already used. Start again to get a new one.");
+
+  if (row["purpose"] === "signup") {
+    const user: AccountUser = {
+      id: randomUUID(),
+      email: String(row["email"]),
+      fullName: String(row["full_name"] ?? ""),
+      avatarDataUrl: null,
+    };
+    if (!user.fullName || typeof row["password_salt"] !== "string" || typeof row["password_hash"] !== "string") {
+      throw new Error("This signup request is incomplete. Start again to create your account.");
+    }
+    try {
+      await db.execute({
+        sql: `INSERT INTO users (id, email, full_name, password_salt, password_hash, created_at)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [user.id, user.email, user.fullName, row["password_salt"], row["password_hash"], Date.now()],
+      });
+    } catch (error) {
+      if (String(error).toLowerCase().includes("unique") || String(error).toLowerCase().includes("constraint")) {
+        throw new Error("An account with this email already exists. Log in instead.");
+      }
+      throw error;
+    }
+    await startSession(user.id);
+    return user;
+  }
+
+  const userId = String(row["user_id"] ?? "");
+  if (!userId) throw new Error("This login request is incomplete. Start again to log in.");
+  const userResult = await db.execute({
+    sql: "SELECT id, email, full_name, avatar_data_url FROM users WHERE id = ? LIMIT 1",
+    args: [userId],
+  });
+  if (!userResult.rows[0]) throw new Error("This account no longer exists. Sign up again.");
+  const user = accountFromRow(userResult.rows[0]);
   await startSession(user.id);
   return user;
 }

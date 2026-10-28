@@ -17,9 +17,12 @@ import {
   getCurrentAccountFn,
   logInAccountFn,
   logOutAccountFn,
+  resendEmailCodeFn,
   signUpAccountFn,
   updateAvatarFn,
+  verifyEmailCodeFn,
   type AccountUser,
+  type EmailAuthChallenge,
 } from "../lib/auth.functions";
 import { Star, X } from "lucide-react";
 import { toast } from "sonner";
@@ -128,10 +131,23 @@ function RootComponent() {
   const [authMode, setAuthMode] = useState<"login" | "signup" | null>(null);
   const [authMessage, setAuthMessage] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
+  const [emailChallenge, setEmailChallenge] = useState<EmailAuthChallenge | null>(null);
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [authUser, setAuthUser] = useState<AccountUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!emailChallenge) {
+      setResendSeconds(0);
+      return;
+    }
+    const updateCountdown = () => setResendSeconds(Math.max(0, Math.ceil((emailChallenge.resendAvailableAt - Date.now()) / 1000)));
+    updateCountdown();
+    const interval = window.setInterval(updateCountdown, 1000);
+    return () => window.clearInterval(interval);
+  }, [emailChallenge]);
 
   useEffect(() => {
     let active = true;
@@ -151,6 +167,12 @@ function RootComponent() {
     };
   }, []);
 
+  function openAuth(mode: "login" | "signup") {
+    setAuthMessage("");
+    setEmailChallenge(null);
+    setAuthMode(mode);
+  }
+
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -159,22 +181,43 @@ function RootComponent() {
     setAuthBusy(true);
     setAuthMessage("");
     try {
-      if (authMode === "signup") {
-        const user = await signUpAccountFn({
+      if (emailChallenge) {
+        const user = await verifyEmailCodeFn({ data: { challengeId: emailChallenge.challengeId, code: String(formData.get("code") ?? "").trim() } });
+        setAuthUser(user);
+        setAuthMode(null);
+        setEmailChallenge(null);
+      } else if (authMode === "signup") {
+        const challenge = await signUpAccountFn({
           data: {
             name: String(formData.get("name") ?? "").trim(),
             email,
             password,
           },
         });
-        setAuthUser(user);
+        setEmailChallenge(challenge);
+        setAuthMessage(`We sent a 6-digit verification code to ${challenge.email}.`);
       } else {
-        const user = await logInAccountFn({ data: { email, password } });
-        setAuthUser(user);
+        const challenge = await logInAccountFn({ data: { email, password } });
+        setEmailChallenge(challenge);
+        setAuthMessage(`We sent a 6-digit verification code to ${challenge.email}.`);
       }
-      setAuthMode(null);
     } catch (error) {
       setAuthMessage(error instanceof Error ? error.message : "Unable to complete account request. Please try again.");
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function handleResendEmailCode() {
+    if (!emailChallenge) return;
+    setAuthBusy(true);
+    setAuthMessage("");
+    try {
+      const challenge = await resendEmailCodeFn({ data: { challengeId: emailChallenge.challengeId } });
+      setEmailChallenge(challenge);
+      setAuthMessage(`A new verification code was sent to ${challenge.email}.`);
+    } catch (error) {
+      setAuthMessage(error instanceof Error ? error.message : "Could not resend the verification code.");
     } finally {
       setAuthBusy(false);
     }
@@ -187,7 +230,7 @@ function RootComponent() {
       setAuthUser(null);
     } catch (error) {
       setAuthMessage(error instanceof Error ? error.message : "Unable to log out. Please try again.");
-      setAuthMode("login");
+      openAuth("login");
     } finally {
       setAuthBusy(false);
     }
@@ -270,10 +313,10 @@ function RootComponent() {
             </div>
           ) : (
             <>
-              <button type="button" className="text-sm font-semibold text-foreground transition hover:text-gold" onClick={() => setAuthMode("login")}>
+              <button type="button" className="text-sm font-semibold text-foreground transition hover:text-gold" onClick={() => openAuth("login")}>
                 Log in
               </button>
-              <button type="button" className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary/90" onClick={() => setAuthMode("signup")}>
+              <button type="button" className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary/90" onClick={() => openAuth("signup")}>
                 Sign up
               </button>
             </>
@@ -285,45 +328,69 @@ function RootComponent() {
       {authMode && (
         <div
           className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4 backdrop-blur-sm"
-          onMouseDown={(event) => { if (event.target === event.currentTarget && !authBusy) setAuthMode(null); }}
+          onMouseDown={(event) => { if (event.target === event.currentTarget && !authBusy) { setAuthMode(null); setEmailChallenge(null); } }}
         >
           <section role="dialog" aria-modal="true" aria-labelledby="auth-title" className="relative w-full max-w-md rounded-2xl border border-border bg-card p-7 shadow-2xl sm:p-9">
-            <button type="button" aria-label="Close" disabled={authBusy} className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50" onClick={() => setAuthMode(null)}>
+            <button type="button" aria-label="Close" disabled={authBusy} className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50" onClick={() => { setAuthMode(null); setEmailChallenge(null); }}>
               <X size={18} />
             </button>
             <p className="eyebrow">CASHVIBE ACCOUNT</p>
             <h2 id="auth-title" className="mt-2 font-display text-3xl font-extrabold text-foreground">
-              {authMode === "login" ? "Welcome back" : "Create your account"}
+              {emailChallenge ? "Check your inbox" : authMode === "login" ? "Welcome back" : "Create your account"}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              {authMode === "login" ? "Log in to your Cashvibe account." : "Sign up for a Cashvibe account."}
+              {emailChallenge
+                ? `Enter the 6-digit code sent to ${emailChallenge.email}. It expires in 10 minutes.`
+                : authMode === "login" ? "Log in to your Cashvibe account. We'll email you a verification code." : "Sign up for a Cashvibe account. We'll email you a verification code."}
             </p>
             <form className="mt-7 space-y-4" onSubmit={handleAuthSubmit}>
-              {authMode === "signup" && (
+              {emailChallenge ? (
                 <label className="block text-sm font-semibold text-foreground">
-                  Name
-                  <input name="name" autoComplete="name" required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="Your name" />
+                  Verification code
+                  <input name="code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="000000" />
                 </label>
+              ) : (
+                <>
+                  {authMode === "signup" && (
+                    <label className="block text-sm font-semibold text-foreground">
+                      Name
+                      <input name="name" autoComplete="name" required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="Your name" />
+                    </label>
+                  )}
+                  <label className="block text-sm font-semibold text-foreground">
+                    Email
+                    <input type="email" name="email" autoComplete="email" required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="you@example.com" />
+                  </label>
+                  <label className="block text-sm font-semibold text-foreground">
+                    Password
+                    <input type="password" name="password" autoComplete={authMode === "login" ? "current-password" : "new-password"} minLength={8} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="At least 8 characters" />
+                  </label>
+                </>
               )}
-              <label className="block text-sm font-semibold text-foreground">
-                Email
-                <input type="email" name="email" autoComplete="email" required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="you@example.com" />
-              </label>
-              <label className="block text-sm font-semibold text-foreground">
-                Password
-                <input type="password" name="password" autoComplete={authMode === "login" ? "current-password" : "new-password"} minLength={8} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="At least 8 characters" />
-              </label>
               <button type="submit" disabled={authBusy} className="w-full rounded-full bg-primary px-5 py-3 font-bold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60">
-                {authBusy ? "Please wait…" : authMode === "login" ? "Log in" : "Create account"}
+                {authBusy ? "Please wait…" : emailChallenge ? "Verify email" : authMode === "login" ? "Log in" : "Create account"}
               </button>
             </form>
+            {emailChallenge && (
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+                <button type="button" disabled={authBusy || resendSeconds > 0} className="font-semibold text-gold hover:underline disabled:cursor-not-allowed disabled:opacity-50" onClick={handleResendEmailCode}>
+                  {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : "Resend code"}
+                </button>
+                <span aria-hidden="true">·</span>
+                <button type="button" disabled={authBusy} className="font-semibold text-gold hover:underline disabled:opacity-50" onClick={() => { setEmailChallenge(null); setAuthMessage(""); }}>
+                  Change details
+                </button>
+              </div>
+            )}
             {authMessage && <p role="status" className="mt-4 rounded-xl border border-border bg-background p-3 text-sm text-muted-foreground">{authMessage}</p>}
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              {authMode === "login" ? "New to Cashvibe?" : "Already have an account?"}{" "}
-              <button type="button" disabled={authBusy} className="font-bold text-gold hover:underline disabled:opacity-50" onClick={() => { setAuthMessage(""); setAuthMode(authMode === "login" ? "signup" : "login"); }}>
-                {authMode === "login" ? "Sign up" : "Log in"}
-              </button>
-            </p>
+            {!emailChallenge && (
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                {authMode === "login" ? "New to Cashvibe?" : "Already have an account?"}{" "}
+                <button type="button" disabled={authBusy} className="font-bold text-gold hover:underline disabled:opacity-50" onClick={() => { setAuthMessage(""); setEmailChallenge(null); setAuthMode(authMode === "login" ? "signup" : "login"); }}>
+                  {authMode === "login" ? "Sign up" : "Log in"}
+                </button>
+              </p>
+            )}
           </section>
         </div>
       )}
