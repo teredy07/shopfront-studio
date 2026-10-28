@@ -17,8 +17,10 @@ import {
   getCurrentAccountFn,
   logInAccountFn,
   logOutAccountFn,
+  completePasswordResetFn,
   resendEmailCodeFn,
   signUpAccountFn,
+  startPasswordResetFn,
   updateAvatarFn,
   verifyEmailCodeFn,
   type AccountUser,
@@ -128,7 +130,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const [authMode, setAuthMode] = useState<"login" | "signup" | null>(null);
+  const [authMode, setAuthMode] = useState<"login" | "signup" | "reset" | null>(null);
   const [authMessage, setAuthMessage] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [emailChallenge, setEmailChallenge] = useState<EmailAuthChallenge | null>(null);
@@ -167,7 +169,7 @@ function RootComponent() {
     };
   }, []);
 
-  function openAuth(mode: "login" | "signup") {
+  function openAuth(mode: "login" | "signup" | "reset") {
     setAuthMessage("");
     setEmailChallenge(null);
     setAuthMode(mode);
@@ -181,11 +183,26 @@ function RootComponent() {
     setAuthBusy(true);
     setAuthMessage("");
     try {
-      if (emailChallenge) {
+      if (emailChallenge?.purpose === "password-reset") {
+        await completePasswordResetFn({
+          data: {
+            challengeId: emailChallenge.challengeId,
+            code: String(formData.get("code") ?? "").trim(),
+            password: String(formData.get("newPassword") ?? ""),
+          },
+        });
+        setEmailChallenge(null);
+        setAuthMode("login");
+        setAuthMessage("Your password has been reset. Log in with your new password.");
+      } else if (emailChallenge) {
         const user = await verifyEmailCodeFn({ data: { challengeId: emailChallenge.challengeId, code: String(formData.get("code") ?? "").trim() } });
         setAuthUser(user);
         setAuthMode(null);
         setEmailChallenge(null);
+      } else if (authMode === "reset") {
+        const challenge = await startPasswordResetFn({ data: { email } });
+        setEmailChallenge(challenge);
+        setAuthMessage(`If an account exists for ${challenge.email}, a reset code has been sent.`);
       } else if (authMode === "signup") {
         const challenge = await signUpAccountFn({
           data: {
@@ -215,7 +232,9 @@ function RootComponent() {
     try {
       const challenge = await resendEmailCodeFn({ data: { challengeId: emailChallenge.challengeId } });
       setEmailChallenge(challenge);
-      setAuthMessage(`A new verification code was sent to ${challenge.email}.`);
+      setAuthMessage(challenge.purpose === "password-reset"
+        ? `If an account exists for ${challenge.email}, a new reset code has been sent.`
+        : `A new verification code was sent to ${challenge.email}.`);
     } catch (error) {
       setAuthMessage(error instanceof Error ? error.message : "Could not resend the verification code.");
     } finally {
@@ -336,19 +355,33 @@ function RootComponent() {
             </button>
             <p className="eyebrow">CASHVIBE ACCOUNT</p>
             <h2 id="auth-title" className="mt-2 font-display text-3xl font-extrabold text-foreground">
-              {emailChallenge ? "Check your inbox" : authMode === "login" ? "Welcome back" : "Create your account"}
+              {emailChallenge?.purpose === "password-reset"
+                ? "Choose a new password"
+                : emailChallenge ? "Check your inbox" : authMode === "reset" ? "Reset your password" : authMode === "login" ? "Welcome back" : "Create your account"}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              {emailChallenge
-                ? `Enter the 6-digit code sent to ${emailChallenge.email}. It expires in 10 minutes.`
-                : authMode === "login" ? "Log in to your Cashvibe account. We'll email you a verification code." : "Sign up for a Cashvibe account. We'll email you a verification code."}
+              {emailChallenge?.purpose === "password-reset"
+                ? `Enter the reset code sent to ${emailChallenge.email}, then choose a new password.`
+                : emailChallenge
+                  ? `Enter the 6-digit code sent to ${emailChallenge.email}. It expires in 10 minutes.`
+                  : authMode === "reset"
+                    ? "Enter your email and we'll send a reset code if an account matches."
+                    : authMode === "login" ? "Log in to your Cashvibe account. We'll email you a verification code." : "Sign up for a Cashvibe account. We'll email you a verification code."}
             </p>
             <form className="mt-7 space-y-4" onSubmit={handleAuthSubmit}>
               {emailChallenge ? (
-                <label className="block text-sm font-semibold text-foreground">
-                  Verification code
-                  <input name="code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="000000" />
-                </label>
+                <>
+                  <label className="block text-sm font-semibold text-foreground">
+                    {emailChallenge.purpose === "password-reset" ? "Reset code" : "Verification code"}
+                    <input name="code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="000000" />
+                  </label>
+                  {emailChallenge.purpose === "password-reset" && (
+                    <label className="block text-sm font-semibold text-foreground">
+                      New password
+                      <input name="newPassword" type="password" autoComplete="new-password" minLength={8} maxLength={128} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="At least 8 characters" />
+                    </label>
+                  )}
+                </>
               ) : (
                 <>
                   {authMode === "signup" && (
@@ -361,14 +394,23 @@ function RootComponent() {
                     Email
                     <input type="email" name="email" autoComplete="email" required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="you@example.com" />
                   </label>
-                  <label className="block text-sm font-semibold text-foreground">
-                    Password
-                    <input type="password" name="password" autoComplete={authMode === "login" ? "current-password" : "new-password"} minLength={8} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="At least 8 characters" />
-                  </label>
+                  {authMode !== "reset" && (
+                    <label className="block text-sm font-semibold text-foreground">
+                      Password
+                      <input type="password" name="password" autoComplete={authMode === "login" ? "current-password" : "new-password"} minLength={8} maxLength={128} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="At least 8 characters" />
+                    </label>
+                  )}
+                  {authMode === "login" && (
+                    <div className="-mt-2 text-right">
+                      <button type="button" disabled={authBusy} className="text-sm font-semibold text-gold hover:underline disabled:opacity-50" onClick={() => openAuth("reset")}>
+                        Forgot password?
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
               <button type="submit" disabled={authBusy} className="w-full rounded-full bg-primary px-5 py-3 font-bold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60">
-                {authBusy ? "Please wait…" : emailChallenge ? "Verify email" : authMode === "login" ? "Log in" : "Create account"}
+                {authBusy ? "Please wait…" : emailChallenge?.purpose === "password-reset" ? "Reset password" : emailChallenge ? "Verify email" : authMode === "reset" ? "Send reset code" : authMode === "login" ? "Log in" : "Create account"}
               </button>
             </form>
             {emailChallenge && (
@@ -378,16 +420,24 @@ function RootComponent() {
                 </button>
                 <span aria-hidden="true">·</span>
                 <button type="button" disabled={authBusy} className="font-semibold text-gold hover:underline disabled:opacity-50" onClick={() => { setEmailChallenge(null); setAuthMessage(""); }}>
-                  Change details
+                  {emailChallenge.purpose === "password-reset" ? "Change email" : "Change details"}
                 </button>
               </div>
             )}
             {authMessage && <p role="status" className="mt-4 rounded-xl border border-border bg-background p-3 text-sm text-muted-foreground">{authMessage}</p>}
-            {!emailChallenge && (
+            {!emailChallenge && authMode !== "reset" && (
               <p className="mt-6 text-center text-sm text-muted-foreground">
                 {authMode === "login" ? "New to Cashvibe?" : "Already have an account?"}{" "}
                 <button type="button" disabled={authBusy} className="font-bold text-gold hover:underline disabled:opacity-50" onClick={() => { setAuthMessage(""); setEmailChallenge(null); setAuthMode(authMode === "login" ? "signup" : "login"); }}>
                   {authMode === "login" ? "Sign up" : "Log in"}
+                </button>
+              </p>
+            )}
+            {!emailChallenge && authMode === "reset" && (
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                Remembered your password?{" "}
+                <button type="button" disabled={authBusy} className="font-bold text-gold hover:underline disabled:opacity-50" onClick={() => openAuth("login")}>
+                  Log in
                 </button>
               </p>
             )}

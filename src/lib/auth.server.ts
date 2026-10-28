@@ -14,6 +14,7 @@ export type AccountUser = {
 export type EmailAuthChallenge = {
   challengeId: string;
   email: string;
+  purpose: "signup" | "login" | "password-reset";
   expiresAt: number;
   resendAvailableAt: number;
 };
@@ -173,7 +174,7 @@ export async function getCurrentAccount(): Promise<AccountUser | null> {
   return accountFromRow(result.rows[0]);
 }
 
-type AuthPurpose = "signup" | "login";
+type AuthPurpose = EmailAuthChallenge["purpose"];
 type ChallengePayload = {
   fullName?: string;
   passwordSalt?: string;
@@ -185,7 +186,7 @@ function hashEmailCode(challengeId: string, code: string): string {
   return createHash("sha256").update(`${challengeId}:${code}`).digest("hex");
 }
 
-async function sendEmailCode(email: string, code: string): Promise<void> {
+async function sendEmailCode(email: string, code: string, purpose: AuthPurpose): Promise<void> {
   const apiKey = process.env["RESEND_API_KEY"]?.trim();
   if (!apiKey) {
     throw new Error("Email verification is not configured. Add RESEND_API_KEY to Vercel, then redeploy.");
@@ -200,9 +201,11 @@ async function sendEmailCode(email: string, code: string): Promise<void> {
     body: JSON.stringify({
       from: "Cashvibe <noreply@cashvibe.shop>",
       to: [email],
-      subject: "Your Cashvibe verification code",
-      text: `Your Cashvibe verification code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore this email.`,
-      html: `<div style="font-family:Arial,sans-serif;color:#f5f2d9;background:#06130c;padding:32px;border-radius:16px"><p style="color:#d7a936;letter-spacing:3px">CASHVIBE</p><h1 style="font-size:24px">Your verification code</h1><p>Enter this code to continue. It expires in 10 minutes.</p><p style="font-size:36px;font-weight:700;letter-spacing:10px;color:#d7a936">${code}</p><p style="color:#a7ad9d">If you didn't request this, you can ignore this email.</p></div>`,
+      subject: purpose === "password-reset" ? "Reset your Cashvibe password" : "Your Cashvibe verification code",
+      text: purpose === "password-reset"
+        ? `Your Cashvibe password reset code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore this email.`
+        : `Your Cashvibe verification code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore this email.`,
+      html: `<div style="font-family:Arial,sans-serif;color:#f5f2d9;background:#06130c;padding:32px;border-radius:16px"><p style="color:#d7a936;letter-spacing:3px">CASHVIBE</p><h1 style="font-size:24px">${purpose === "password-reset" ? "Reset your password" : "Your verification code"}</h1><p>${purpose === "password-reset" ? "Enter this code to choose a new password." : "Enter this code to continue."} It expires in 10 minutes.</p><p style="font-size:36px;font-weight:700;letter-spacing:10px;color:#d7a936">${code}</p><p style="color:#a7ad9d">If you didn't request this, you can ignore this email.</p></div>`,
     }),
   });
 
@@ -215,6 +218,7 @@ function challengeResult(row: Row): EmailAuthChallenge {
   return {
     challengeId: String(row["id"]),
     email: String(row["email"]),
+    purpose: String(row["purpose"]) as AuthPurpose,
     expiresAt: Number(row["expires_at"]),
     resendAvailableAt: Number(row["created_at"]) + EMAIL_CODE_RESEND_DELAY_MS,
   };
@@ -226,10 +230,11 @@ async function createEmailChallenge(
   purpose: AuthPurpose,
   payload: ChallengePayload,
   reuseId?: string,
+  deliverEmail = true,
 ): Promise<EmailAuthChallenge> {
   const now = Date.now();
   const existing = await db.execute({
-    sql: "SELECT id, email, created_at, expires_at FROM email_verification_challenges WHERE email = ? AND purpose = ? LIMIT 1",
+    sql: "SELECT id, email, purpose, created_at, expires_at FROM email_verification_challenges WHERE email = ? AND purpose = ? LIMIT 1",
     args: [email, purpose],
   });
   const existingRow = existing.rows[0];
@@ -259,7 +264,7 @@ async function createEmailChallenge(
   });
 
   try {
-    await sendEmailCode(email, code);
+    if (deliverEmail) await sendEmailCode(email, code, purpose);
   } catch (error) {
     await db.execute({ sql: "DELETE FROM email_verification_challenges WHERE id = ?", args: [challengeId] });
     throw error;
@@ -268,6 +273,7 @@ async function createEmailChallenge(
   return {
     challengeId,
     email,
+    purpose,
     expiresAt: now + EMAIL_CODE_LIFETIME_MS,
     resendAvailableAt: now + EMAIL_CODE_RESEND_DELAY_MS,
   };
@@ -312,6 +318,21 @@ export async function logInAccount(input: { email: string; password: string }): 
   return createEmailChallenge(db, email, "login", { userId: String(row["id"]) });
 }
 
+export async function startPasswordReset(emailInput: string): Promise<EmailAuthChallenge> {
+  const db = await ensureSchema();
+  const email = emailInput.trim().toLowerCase();
+  const result = await db.execute({ sql: "SELECT id FROM users WHERE email = ? LIMIT 1", args: [email] });
+  const row = result.rows[0];
+  return createEmailChallenge(
+    db,
+    email,
+    "password-reset",
+    row ? { userId: String(row["id"]) } : {},
+    undefined,
+    Boolean(row),
+  );
+}
+
 export async function resendEmailCode(challengeId: string): Promise<EmailAuthChallenge> {
   const db = await ensureSchema();
   const result = await db.execute({
@@ -330,7 +351,8 @@ export async function resendEmailCode(challengeId: string): Promise<EmailAuthCha
   if (typeof row["password_salt"] === "string") payload.passwordSalt = row["password_salt"];
   if (typeof row["password_hash"] === "string") payload.passwordHash = row["password_hash"];
   if (typeof row["user_id"] === "string") payload.userId = row["user_id"];
-  return createEmailChallenge(db, String(row["email"]), String(row["purpose"]) as AuthPurpose, payload, challengeId);
+  const purpose = String(row["purpose"]) as AuthPurpose;
+  return createEmailChallenge(db, String(row["email"]), purpose, payload, challengeId, purpose !== "password-reset" || typeof row["user_id"] === "string");
 }
 
 export async function verifyEmailCode(challengeId: string, code: string): Promise<AccountUser> {
@@ -341,6 +363,9 @@ export async function verifyEmailCode(challengeId: string, code: string): Promis
   });
   const row = result.rows[0];
   if (!row) throw new Error("That verification code expired or was already used. Start again to get a new one.");
+  if (row["purpose"] !== "signup" && row["purpose"] !== "login") {
+    throw new Error("Use the password reset form to verify this code.");
+  }
   if (Date.now() > Number(row["expires_at"])) {
     await db.execute({ sql: "DELETE FROM email_verification_challenges WHERE id = ?", args: [challengeId] });
     throw new Error("That verification code expired. Start again to get a new one.");
@@ -398,6 +423,52 @@ export async function verifyEmailCode(challengeId: string, code: string): Promis
   const user = accountFromRow(userResult.rows[0]);
   await startSession(user.id);
   return user;
+}
+
+export async function completePasswordReset(challengeId: string, code: string, newPassword: string): Promise<void> {
+  const db = await ensureSchema();
+  if (newPassword.length < 8 || newPassword.length > 128) {
+    throw new Error("Use a password between 8 and 128 characters.");
+  }
+  const result = await db.execute({
+    sql: "SELECT * FROM email_verification_challenges WHERE id = ? LIMIT 1",
+    args: [challengeId],
+  });
+  const row = result.rows[0];
+  if (!row || row["purpose"] !== "password-reset") {
+    throw new Error("That reset code is invalid or expired. Request a new one and try again.");
+  }
+  if (Date.now() > Number(row["expires_at"])) {
+    await db.execute({ sql: "DELETE FROM email_verification_challenges WHERE id = ?", args: [challengeId] });
+    throw new Error("That reset code expired. Request a new one and try again.");
+  }
+  if (!/^\d{6}$/.test(code)) throw new Error("Enter the 6-digit code from your email.");
+
+  const expected = Buffer.from(String(row["code_hash"]), "hex");
+  const actual = Buffer.from(hashEmailCode(challengeId, code), "hex");
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+    const attempts = Number(row["attempts"]) + 1;
+    if (attempts >= EMAIL_CODE_MAX_ATTEMPTS) {
+      await db.execute({ sql: "DELETE FROM email_verification_challenges WHERE id = ?", args: [challengeId] });
+      throw new Error("Too many incorrect codes. Request a new reset code.");
+    }
+    await db.execute({ sql: "UPDATE email_verification_challenges SET attempts = ? WHERE id = ?", args: [attempts, challengeId] });
+    throw new Error(`That code isn't correct. ${EMAIL_CODE_MAX_ATTEMPTS - attempts} attempts remaining.`);
+  }
+
+  const userId = String(row["user_id"] ?? "");
+  if (!userId) throw new Error("That reset code is invalid or expired. Request a new one and try again.");
+  const consumed = await db.execute({ sql: "DELETE FROM email_verification_challenges WHERE id = ?", args: [challengeId] });
+  if (consumed.rowsAffected !== 1) throw new Error("That reset code was already used. Request a new one and try again.");
+
+  const salt = randomBytes(16).toString("hex");
+  const passwordHash = (await derivePassword(newPassword, salt)).toString("hex");
+  const update = await db.execute({
+    sql: "UPDATE users SET password_salt = ?, password_hash = ? WHERE id = ?",
+    args: [salt, passwordHash, userId],
+  });
+  if (update.rowsAffected !== 1) throw new Error("This account no longer exists. Start again.");
+  await db.execute({ sql: "DELETE FROM sessions WHERE user_id = ?", args: [userId] });
 }
 
 export async function logOutAccount(): Promise<void> {

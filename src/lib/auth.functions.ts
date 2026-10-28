@@ -43,6 +43,21 @@ export const resendEmailCodeFn = createServerFn({ method: "POST" })
     return resendEmailCode(data.challengeId);
   });
 
+export const startPasswordResetFn = createServerFn({ method: "POST" })
+  .validator(z.object({ email: z.string().trim().email().max(254) }))
+  .handler(async ({ data }) => {
+    const { startPasswordReset } = await import("./auth.server");
+    return startPasswordReset(data.email);
+  });
+
+export const completePasswordResetFn = createServerFn({ method: "POST" })
+  .validator(challengeSchema.extend({ code: z.string().regex(/^\d{6}$/), password: z.string().min(8).max(128) }))
+  .handler(async ({ data }) => {
+    const { completePasswordReset } = await import("./auth.server");
+    await completePasswordReset(data.challengeId, data.code, data.password);
+    return { success: true };
+  });
+
 export const logOutAccountFn = createServerFn({ method: "POST" }).handler(async () => {
   const { logOutAccount } = await import("./auth.server");
   await logOutAccount();
