@@ -31,7 +31,10 @@ async function getDatabase(): Promise<Client> {
   if (!clientPromise) {
     clientPromise = (async () => {
       const configuredUrl = process.env["TURSO_DATABASE_URL"]?.trim();
-      const authToken = process.env["TURSO_AUTH_TOKEN"]?.trim();
+      // Turso tokens are ASCII and never contain whitespace. Remove any
+      // invisible line separators introduced when copying the token into a
+      // hosting dashboard, since fetch rejects them in the Authorization header.
+      const authToken = process.env["TURSO_AUTH_TOKEN"]?.replace(/\s/gu, "");
       if (process.env["NODE_ENV"] === "production" && !configuredUrl) {
         throw new Error("The account database is not configured yet. Add TURSO_DATABASE_URL and TURSO_AUTH_TOKEN to the Vercel project, then redeploy.");
       }
