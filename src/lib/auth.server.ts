@@ -225,9 +225,7 @@ function emailCodeHtml(code: string, purpose: AuthPurpose): string {
           <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background-color:#07150c;border:1px solid #27402e;border-radius:24px;overflow:hidden">
             <tr>
               <td class="email-card" style="padding:40px 42px 34px">
-                <div style="margin:0 0 34px;font-family:Arial,'Arial Black',Helvetica,sans-serif;font-size:28px;font-weight:900;letter-spacing:-1.5px;line-height:1;color:#f5f2d9">
-                  <span style="color:#f5f2d9">ca</span><span style="color:#d7a936">$</span><span style="color:#f5f2d9">hvibe</span><span style="margin-left:7px;color:#d7a936;font-size:18px;vertical-align:3px">★</span>
-                </div>
+                <img src="https://cashvibe.shop/cashvibe-email-logo.png" alt="ca$hvibe ★" width="400" style="display:block;width:100%;max-width:400px;height:auto;margin:0 0 14px;border:0;outline:none;text-decoration:none">
                 <p style="margin:0 0 12px;color:#d7a936;font-size:12px;font-weight:700;letter-spacing:3px;line-height:1.5;text-transform:uppercase">Account access</p>
                 <h1 style="margin:0 0 14px;color:#f5f2d9;font-size:30px;font-weight:800;line-height:1.2">${heading}</h1>
                 <p style="margin:0 0 28px;color:#b3b8aa;font-size:16px;line-height:1.65">${instruction} This code expires in <strong style="color:#f5f2d9">10 minutes</strong>.</p>
