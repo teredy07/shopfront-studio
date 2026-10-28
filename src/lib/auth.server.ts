@@ -222,8 +222,8 @@ function emailCodeHtml(code: string, purpose: AuthPurpose): string {
       }
     </style>
   </head>
-  <body style="margin:0;padding:0;background-color:#030e07;color:#f4f3e0;font-family:'Plus Jakarta Sans',Arial,sans-serif;-webkit-text-size-adjust:100%">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background-color:#030e07;font-family:'Plus Jakarta Sans',Arial,sans-serif">
+  <body style="margin:0;padding:0;background-color:#08180e;color:#f4f3e0;font-family:'Plus Jakarta Sans',Arial,sans-serif;-webkit-text-size-adjust:100%">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background-color:#08180e;font-family:'Plus Jakarta Sans',Arial,sans-serif">
       <tr>
         <td align="center" style="padding:38px 16px">
           <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background-color:#08180e;border:1px solid #293e2d;border-radius:24px;overflow:hidden">
