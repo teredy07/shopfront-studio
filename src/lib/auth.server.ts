@@ -228,7 +228,7 @@ function emailCodeHtml(code: string, purpose: AuthPurpose): string {
         <td align="center" style="padding:38px 16px">
           <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" bgcolor="#08180e" style="width:100%;max-width:600px;background-color:#08180e;border:1px solid #293e2d;border-radius:24px;overflow:hidden">
             <tr>
-              <td align="center" bgcolor="#030e07" style="padding:10px 22px 0;background-color:#030e07">
+              <td align="center" bgcolor="#08180e" style="padding:10px 22px 0;background-color:#08180e">
                 <img src="https://cashvibe.shop/cashvibe-email-logo.png" alt="ca$hvibe ★" width="400" style="display:block;width:100%;max-width:400px;height:auto;border:0;outline:none;text-decoration:none">
               </td>
             </tr>
