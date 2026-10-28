@@ -113,6 +113,15 @@ async function ensureSchema(): Promise<Client> {
         CREATE UNIQUE INDEX IF NOT EXISTS email_challenge_email_purpose_idx
         ON email_verification_challenges(email, purpose)
       `);
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS password_reset_grants (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          expires_at INTEGER NOT NULL
+        )
+      `);
+      await db.execute("CREATE INDEX IF NOT EXISTS password_reset_grants_expires_at_idx ON password_reset_grants(expires_at)");
     })().catch((error: unknown) => {
       schemaSetup = undefined;
       throw error;
@@ -425,11 +434,8 @@ export async function verifyEmailCode(challengeId: string, code: string): Promis
   return user;
 }
 
-export async function completePasswordReset(challengeId: string, code: string, newPassword: string): Promise<void> {
+export async function verifyPasswordResetCode(challengeId: string, code: string): Promise<{ grantId: string; email: string; expiresAt: number }> {
   const db = await ensureSchema();
-  if (newPassword.length < 8 || newPassword.length > 128) {
-    throw new Error("Use a password between 8 and 128 characters.");
-  }
   const result = await db.execute({
     sql: "SELECT * FROM email_verification_challenges WHERE id = ? LIMIT 1",
     args: [challengeId],
@@ -460,6 +466,34 @@ export async function completePasswordReset(challengeId: string, code: string, n
   if (!userId) throw new Error("That reset code is invalid or expired. Request a new one and try again.");
   const consumed = await db.execute({ sql: "DELETE FROM email_verification_challenges WHERE id = ?", args: [challengeId] });
   if (consumed.rowsAffected !== 1) throw new Error("That reset code was already used. Request a new one and try again.");
+
+  const now = Date.now();
+  const grantId = randomBytes(32).toString("base64url");
+  const grantExpiresAt = now + EMAIL_CODE_LIFETIME_MS;
+  await db.execute({
+    sql: "INSERT INTO password_reset_grants (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
+    args: [grantId, userId, now, grantExpiresAt],
+  });
+  return { grantId, email: String(row["email"]), expiresAt: grantExpiresAt };
+}
+
+export async function completePasswordReset(grantId: string, newPassword: string): Promise<void> {
+  const db = await ensureSchema();
+  if (newPassword.length < 8 || newPassword.length > 128) {
+    throw new Error("Use a password between 8 and 128 characters.");
+  }
+  const result = await db.execute({
+    sql: "SELECT user_id FROM password_reset_grants WHERE id = ? AND expires_at > ? LIMIT 1",
+    args: [grantId, Date.now()],
+  });
+  const grant = result.rows[0];
+  if (!grant) throw new Error("Your password reset session expired. Request a new reset code and try again.");
+  const userId = String(grant["user_id"]);
+  const consumed = await db.execute({
+    sql: "DELETE FROM password_reset_grants WHERE id = ? AND expires_at > ?",
+    args: [grantId, Date.now()],
+  });
+  if (consumed.rowsAffected !== 1) throw new Error("Your password reset session expired. Request a new reset code and try again.");
 
   const salt = randomBytes(16).toString("hex");
   const passwordHash = (await derivePassword(newPassword, salt)).toString("hex");

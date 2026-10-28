@@ -50,11 +50,18 @@ export const startPasswordResetFn = createServerFn({ method: "POST" })
     return startPasswordReset(data.email);
   });
 
+export const verifyPasswordResetCodeFn = createServerFn({ method: "POST" })
+  .validator(challengeSchema.extend({ code: z.string().regex(/^\d{6}$/) }))
+  .handler(async ({ data }) => {
+    const { verifyPasswordResetCode } = await import("./auth.server");
+    return verifyPasswordResetCode(data.challengeId, data.code);
+  });
+
 export const completePasswordResetFn = createServerFn({ method: "POST" })
-  .validator(challengeSchema.extend({ code: z.string().regex(/^\d{6}$/), password: z.string().min(8).max(128) }))
+  .validator(z.object({ grantId: z.string().regex(/^[A-Za-z0-9_-]{40,50}$/), password: z.string().min(8).max(128) }))
   .handler(async ({ data }) => {
     const { completePasswordReset } = await import("./auth.server");
-    await completePasswordReset(data.challengeId, data.code, data.password);
+    await completePasswordReset(data.grantId, data.password);
     return { success: true };
   });
 

@@ -21,6 +21,7 @@ import {
   resendEmailCodeFn,
   signUpAccountFn,
   startPasswordResetFn,
+  verifyPasswordResetCodeFn,
   updateAvatarFn,
   verifyEmailCodeFn,
   type AccountUser,
@@ -130,10 +131,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const [authMode, setAuthMode] = useState<"login" | "signup" | "reset" | null>(null);
+  const [authMode, setAuthMode] = useState<"login" | "signup" | "reset" | "new-password" | null>(null);
   const [authMessage, setAuthMessage] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [emailChallenge, setEmailChallenge] = useState<EmailAuthChallenge | null>(null);
+  const [resetGrant, setResetGrant] = useState<string | null>(null);
   const [resendSeconds, setResendSeconds] = useState(0);
   const [authUser, setAuthUser] = useState<AccountUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -172,6 +174,7 @@ function RootComponent() {
   function openAuth(mode: "login" | "signup" | "reset") {
     setAuthMessage("");
     setEmailChallenge(null);
+    setResetGrant(null);
     setAuthMode(mode);
   }
 
@@ -183,17 +186,30 @@ function RootComponent() {
     setAuthBusy(true);
     setAuthMessage("");
     try {
-      if (emailChallenge?.purpose === "password-reset") {
+      if (authMode === "new-password" && resetGrant) {
+        const newPassword = String(formData.get("newPassword") ?? "");
+        const confirmedPassword = String(formData.get("confirmPassword") ?? "");
+        if (newPassword !== confirmedPassword) throw new Error("The passwords don't match. Check both fields and try again.");
         await completePasswordResetFn({
           data: {
-            challengeId: emailChallenge.challengeId,
-            code: String(formData.get("code") ?? "").trim(),
-            password: String(formData.get("newPassword") ?? ""),
+            grantId: resetGrant,
+            password: newPassword,
           },
         });
         setEmailChallenge(null);
+        setResetGrant(null);
         setAuthMode("login");
         setAuthMessage("Your password has been reset. Log in with your new password.");
+      } else if (emailChallenge?.purpose === "password-reset") {
+        const grant = await verifyPasswordResetCodeFn({
+          data: {
+            challengeId: emailChallenge.challengeId,
+            code: String(formData.get("code") ?? "").trim(),
+          },
+        });
+        setResetGrant(grant.grantId);
+        setAuthMode("new-password");
+        setAuthMessage("Code verified. Choose and confirm your new password.");
       } else if (emailChallenge) {
         const user = await verifyEmailCodeFn({ data: { challengeId: emailChallenge.challengeId, code: String(formData.get("code") ?? "").trim() } });
         setAuthUser(user);
@@ -347,21 +363,25 @@ function RootComponent() {
       {authMode && (
         <div
           className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4 backdrop-blur-sm"
-          onMouseDown={(event) => { if (event.target === event.currentTarget && !authBusy) { setAuthMode(null); setEmailChallenge(null); } }}
+          onMouseDown={(event) => { if (event.target === event.currentTarget && !authBusy) { setAuthMode(null); setEmailChallenge(null); setResetGrant(null); } }}
         >
           <section role="dialog" aria-modal="true" aria-labelledby="auth-title" className="relative w-full max-w-md rounded-2xl border border-border bg-card p-7 shadow-2xl sm:p-9">
-            <button type="button" aria-label="Close" disabled={authBusy} className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50" onClick={() => { setAuthMode(null); setEmailChallenge(null); }}>
+            <button type="button" aria-label="Close" disabled={authBusy} className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50" onClick={() => { setAuthMode(null); setEmailChallenge(null); setResetGrant(null); }}>
               <X size={18} />
             </button>
             <p className="eyebrow">CASHVIBE ACCOUNT</p>
             <h2 id="auth-title" className="mt-2 font-display text-3xl font-extrabold text-foreground">
-              {emailChallenge?.purpose === "password-reset"
+              {authMode === "new-password"
                 ? "Choose a new password"
+                : emailChallenge?.purpose === "password-reset"
+                  ? "Verify your reset code"
                 : emailChallenge ? "Check your inbox" : authMode === "reset" ? "Reset your password" : authMode === "login" ? "Welcome back" : "Create your account"}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              {emailChallenge?.purpose === "password-reset"
-                ? `Enter the reset code sent to ${emailChallenge.email}, then choose a new password.`
+              {authMode === "new-password"
+                ? `Set a new password for ${emailChallenge?.email ?? "your account"}. Enter it twice to confirm.`
+                : emailChallenge?.purpose === "password-reset"
+                  ? `Enter the 6-digit reset code sent to ${emailChallenge.email}. After verification, you'll set a new password.`
                 : emailChallenge
                   ? `Enter the 6-digit code sent to ${emailChallenge.email}. It expires in 10 minutes.`
                   : authMode === "reset"
@@ -369,18 +389,23 @@ function RootComponent() {
                     : authMode === "login" ? "Log in to your Cashvibe account. We'll email you a verification code." : "Sign up for a Cashvibe account. We'll email you a verification code."}
             </p>
             <form className="mt-7 space-y-4" onSubmit={handleAuthSubmit}>
-              {emailChallenge ? (
+              {authMode === "new-password" ? (
+                <>
+                  <label className="block text-sm font-semibold text-foreground">
+                    New password
+                    <input name="newPassword" type="password" autoComplete="new-password" minLength={8} maxLength={128} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="At least 8 characters" />
+                  </label>
+                  <label className="block text-sm font-semibold text-foreground">
+                    Confirm new password
+                    <input name="confirmPassword" type="password" autoComplete="new-password" minLength={8} maxLength={128} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="Enter the new password again" />
+                  </label>
+                </>
+              ) : emailChallenge ? (
                 <>
                   <label className="block text-sm font-semibold text-foreground">
                     {emailChallenge.purpose === "password-reset" ? "Reset code" : "Verification code"}
                     <input name="code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="000000" />
                   </label>
-                  {emailChallenge.purpose === "password-reset" && (
-                    <label className="block text-sm font-semibold text-foreground">
-                      New password
-                      <input name="newPassword" type="password" autoComplete="new-password" minLength={8} maxLength={128} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="At least 8 characters" />
-                    </label>
-                  )}
                 </>
               ) : (
                 <>
@@ -410,10 +435,10 @@ function RootComponent() {
                 </>
               )}
               <button type="submit" disabled={authBusy} className="w-full rounded-full bg-primary px-5 py-3 font-bold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60">
-                {authBusy ? "Please wait…" : emailChallenge?.purpose === "password-reset" ? "Reset password" : emailChallenge ? "Verify email" : authMode === "reset" ? "Send reset code" : authMode === "login" ? "Log in" : "Create account"}
+                {authBusy ? "Please wait…" : authMode === "new-password" ? "Save new password" : emailChallenge?.purpose === "password-reset" ? "Verify reset code" : emailChallenge ? "Verify email" : authMode === "reset" ? "Send reset code" : authMode === "login" ? "Log in" : "Create account"}
               </button>
             </form>
-            {emailChallenge && (
+            {emailChallenge && authMode !== "new-password" && (
               <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
                 <button type="button" disabled={authBusy || resendSeconds > 0} className="font-semibold text-gold hover:underline disabled:cursor-not-allowed disabled:opacity-50" onClick={handleResendEmailCode}>
                   {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : "Resend code"}
