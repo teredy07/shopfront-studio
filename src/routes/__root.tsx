@@ -204,14 +204,14 @@ function RootComponent() {
         const grant = await verifyPasswordResetCodeFn({
           data: {
             challengeId: emailChallenge.challengeId,
-            code: String(formData.get("code") ?? "").trim(),
+            code: String(formData.get("verificationCode") ?? "").trim(),
           },
         });
         setResetGrant(grant.grantId);
         setAuthMode("new-password");
         setAuthMessage("Code verified. Choose and confirm your new password.");
       } else if (emailChallenge) {
-        const user = await verifyEmailCodeFn({ data: { challengeId: emailChallenge.challengeId, code: String(formData.get("code") ?? "").trim() } });
+        const user = await verifyEmailCodeFn({ data: { challengeId: emailChallenge.challengeId, code: String(formData.get("verificationCode") ?? "").trim() } });
         setAuthUser(user);
         setAuthMode(null);
         setEmailChallenge(null);
@@ -388,7 +388,7 @@ function RootComponent() {
                     ? "Enter your email and we'll send a reset code if an account matches."
                     : authMode === "login" ? "Log in to your Cashvibe account. We'll email you a verification code." : "Sign up for a Cashvibe account. We'll email you a verification code."}
             </p>
-            <form className="mt-7 space-y-4" onSubmit={handleAuthSubmit}>
+            <form autoComplete="off" className="mt-7 space-y-4" onSubmit={handleAuthSubmit}>
               {authMode === "new-password" ? (
                 <>
                   <label className="block text-sm font-semibold text-foreground">
@@ -404,7 +404,7 @@ function RootComponent() {
                 <>
                   <label className="block text-sm font-semibold text-foreground">
                     {emailChallenge.purpose === "password-reset" ? "Reset code" : "Verification code"}
-                    <input name="code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="000000" />
+                    <input name="verificationCode" type="tel" inputMode="numeric" autoComplete="off" autoCapitalize="off" spellCheck={false} pattern="[0-9]{6}" maxLength={6} required className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary" placeholder="000000" />
                   </label>
                 </>
               ) : (
