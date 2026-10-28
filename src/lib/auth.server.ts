@@ -222,22 +222,22 @@ function emailCodeHtml(code: string, purpose: AuthPurpose): string {
       }
     </style>
   </head>
-  <body style="margin:0;padding:0;background-color:#08180e;color:#f4f3e0;font-family:'Plus Jakarta Sans',Arial,sans-serif;-webkit-text-size-adjust:100%">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background-color:#08180e;font-family:'Plus Jakarta Sans',Arial,sans-serif">
+  <body bgcolor="#030e07" style="margin:0;padding:0;background-color:#030e07;color:#f4f3e0;font-family:'Plus Jakarta Sans',Arial,sans-serif;-webkit-text-size-adjust:100%">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#030e07" style="width:100%;background-color:#030e07;font-family:'Plus Jakarta Sans',Arial,sans-serif">
       <tr>
         <td align="center" style="padding:38px 16px">
-          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background-color:#08180e;border:1px solid #293e2d;border-radius:24px;overflow:hidden">
+          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" bgcolor="#08180e" style="width:100%;max-width:600px;background-color:#08180e;border:1px solid #293e2d;border-radius:24px;overflow:hidden">
             <tr>
-              <td align="center" style="padding:10px 22px 0;background-color:#030e07">
+              <td align="center" bgcolor="#030e07" style="padding:10px 22px 0;background-color:#030e07">
                 <img src="https://cashvibe.shop/cashvibe-email-logo.png" alt="ca$hvibe ★" width="400" style="display:block;width:100%;max-width:400px;height:auto;border:0;outline:none;text-decoration:none">
               </td>
             </tr>
             <tr>
-              <td class="email-card" style="padding:30px 42px 34px;background-color:#08180e;font-family:'Plus Jakarta Sans',Arial,sans-serif">
+              <td class="email-card" bgcolor="#08180e" style="padding:30px 42px 34px;background-color:#08180e;font-family:'Plus Jakarta Sans',Arial,sans-serif">
                 <p style="margin:0 0 12px;color:#d2a23b;font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:3px;line-height:1.5;text-transform:uppercase">Cashvibe account</p>
                 <h1 style="margin:0 0 14px;color:#f4f3e0;font-family:Syne,'Arial Black',Arial,sans-serif;font-size:36px;font-weight:800;letter-spacing:-1px;line-height:1.12">${heading}</h1>
                 <p style="margin:0 0 28px;color:#a2a796;font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:16px;line-height:1.65">${instruction} This code expires in <strong style="color:#f4f3e0;font-weight:700">10 minutes</strong>.</p>
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background-color:#030e07;border:2px solid #d2a23b;border-radius:18px">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#030e07" style="width:100%;background-color:#030e07;border:2px solid #d2a23b;border-radius:18px">
                   <tr>
                     <td align="center" class="code-value" style="padding:22px 12px;color:#f4f3e0;font-family:Syne,'Arial Black',Arial,sans-serif;font-size:44px;font-weight:800;letter-spacing:12px;line-height:1.25">${code}</td>
                   </tr>
