@@ -252,7 +252,7 @@ function RootComponent() {
                   <img src={authUser.avatarDataUrl} alt="" className="h-9 w-9 shrink-0 rounded-full border border-primary/50 object-cover" />
                 ) : (
                   <span aria-hidden="true" className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-primary/50 bg-card text-sm font-bold text-gold">
-                    (authUser.fullName || authUser.email || "C").slice(0, 1).toUpperCase()
+                    {(authUser.fullName || authUser.email || "C").slice(0, 1).toUpperCase()}
                   </span>
                 )}
                 <div className="hidden min-w-0 sm:block">
