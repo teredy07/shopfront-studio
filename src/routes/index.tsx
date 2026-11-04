@@ -1,10 +1,29 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useRef, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
-import { products, categories, type Product } from "@/lib/products";
-import { revealVariants, staggerParentVariants } from "@/lib/motion";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { ArrowDown } from "lucide-react";
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
+import { useEffect, useState, type CSSProperties, type MouseEvent } from "react";
+
+import { HeroShowcase } from "@/components/HeroShowcase";
+import { ProductCard } from "@/components/ProductCard";
+import { countByCategory, parseCatalogSearch, type Category } from "@/lib/catalog";
+import { springSnappy } from "@/lib/motion";
+import { categories, products, type Product } from "@/lib/products";
+import { cn } from "@/lib/utils";
+
+// The entrance animation plays once per visit; coming back to the catalog should feel instant.
+let introPlayed = false;
+
+const categoryCounts = countByCategory(products);
+const freeCount = products.filter((product) => product.price === 0).length;
+const showcase = categories
+  .filter((category) => category !== "All")
+  .map((category) => products.find((product) => product.category === category))
+  .filter((product): product is Product => product !== undefined);
+
+const revealAt = (index: number) => ({ "--reveal-index": index }) as CSSProperties;
 
 export const Route = createFileRoute("/")({
+  validateSearch: parseCatalogSearch,
   head: () => ({
     meta: [
       { title: "cashvibe — After Effects Templates" },
@@ -23,134 +42,152 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const [cat, setCat] = useState<string>("All");
-  const prefersReducedMotion = useReducedMotion();
-  const shown = cat === "All" ? products : products.filter((p) => p.category === cat);
+  const { category = "All" } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const reduceMotion = useReducedMotion();
+  const [intro] = useState(() => !introPlayed);
+  const shown = category === "All" ? products : products.filter((p) => p.category === category);
+
+  useEffect(() => {
+    introPlayed = true;
+  }, []);
+
+  function selectCategory(next: Category) {
+    // The filter lives in the URL so it survives reloads and the back button.
+    void navigate({
+      search: next === "All" ? {} : { category: next },
+      replace: true,
+      resetScroll: false,
+      viewTransition: false,
+    });
+  }
+
+  function scrollToCatalog(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    document
+      .getElementById("templates")
+      ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  }
+
   return (
-    <main className="mx-auto max-w-6xl px-6 pb-24">
-      <motion.section
-        className="py-20 md:py-28"
-        variants={staggerParentVariants}
-        initial={prefersReducedMotion ? false : "hidden"}
-        animate="visible"
-      >
-        <motion.p className="eyebrow" variants={revealVariants} custom={0}>
-          After Effects templates
-        </motion.p>
-        <motion.h1
-          className="mt-4 font-display text-5xl leading-[0.95] md:text-8xl"
-          variants={revealVariants}
-          custom={1}
-        >
-          Motion that <span className="text-gold">moves</span> people.
-        </motion.h1>
-        <motion.p
-          className="mt-6 max-w-xl text-lg text-muted-foreground"
-          variants={revealVariants}
-          custom={2}
-        >
-          Ready-made project files for editors and creators. Download, drop in your footage, render.
-        </motion.p>
-      </motion.section>
+    <main>
+      <section className="relative isolate">
+        <div aria-hidden="true" className="hero-aurora" />
+        <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-5 pb-16 pt-12 sm:px-6 md:pb-24 md:pt-20 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:pt-14">
+          <div>
+            <p
+              className={cn("eyebrow inline-flex items-center gap-2.5", intro && "reveal")}
+              style={revealAt(0)}
+            >
+              <span aria-hidden="true" className="pulse-dot" />
+              After Effects templates
+            </p>
+            <h1
+              className={cn(
+                "mt-5 font-display text-5xl leading-[0.95] sm:text-6xl md:text-8xl lg:text-7xl",
+                intro && "reveal",
+              )}
+              style={revealAt(1)}
+            >
+              Motion that <span className="text-gold-gradient">moves</span> people.
+            </h1>
+            <p
+              className={cn("mt-6 max-w-xl text-lg text-muted-foreground", intro && "reveal")}
+              style={revealAt(2)}
+            >
+              Ready-made project files for editors and creators. Download, drop in your footage,
+              render.
+            </p>
+            <div
+              className={cn("mt-9 flex flex-wrap items-center gap-3", intro && "reveal")}
+              style={revealAt(3)}
+            >
+              <a href="#templates" className="btn-primary group" onClick={scrollToCatalog}>
+                Browse templates
+                <ArrowDown
+                  aria-hidden="true"
+                  className="h-4 w-4 transition-transform duration-300 group-hover:translate-y-0.5"
+                />
+              </a>
+              <span className="stat-pill">
+                <strong>{products.length}</strong> templates
+              </span>
+              <span className="stat-pill">
+                <strong>{freeCount}</strong> free downloads
+              </span>
+            </div>
+          </div>
+          <HeroShowcase products={showcase} intro={intro} />
+        </div>
+      </section>
 
-      <motion.div
-        className="mb-8 flex flex-wrap gap-2"
-        variants={staggerParentVariants}
-        initial={prefersReducedMotion ? false : "hidden"}
-        animate="visible"
+      <section
+        id="templates"
+        aria-labelledby="templates-title"
+        className="mx-auto max-w-6xl scroll-mt-24 px-5 pb-24 sm:px-6"
       >
-        {categories.map((c, index) => (
-          <motion.button
-            key={c}
-            onClick={() => setCat(c)}
-            className={c === cat ? "chip chip-active" : "chip"}
-            variants={revealVariants}
-            custom={index}
-          >
-            {c}
-          </motion.button>
-        ))}
-      </motion.div>
+        <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="eyebrow">Catalog</p>
+            <h2 id="templates-title" className="mt-2 font-display text-3xl md:text-4xl">
+              Templates
+            </h2>
+          </div>
+          <LayoutGroup id="category-filter">
+            <div role="group" aria-label="Filter by category" className="flex flex-wrap gap-2">
+              {categories.map((c) => {
+                const active = c === category;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => selectCategory(c)}
+                    className={cn("chip", active && "chip-active")}
+                  >
+                    {active && (
+                      <motion.span
+                        layoutId="category-pill"
+                        aria-hidden="true"
+                        className="absolute inset-0 rounded-full bg-primary shadow-[0_8px_24px_-10px_var(--gold-glow)]"
+                        transition={reduceMotion ? { duration: 0 } : springSnappy}
+                      />
+                    )}
+                    <span className="relative">{c}</span>
+                    <span className="relative text-xs tabular-nums opacity-60">
+                      {categoryCounts[c]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </LayoutGroup>
+        </div>
 
-      <section key={cat} className="grid gap-6 sm:grid-cols-2">
-        {shown.map((p, index) => (
-          <ProductCard
-            key={p.slug}
-            product={p}
-            index={index}
-            prefersReducedMotion={prefersReducedMotion}
-          />
-        ))}
+        <ul className="relative grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <AnimatePresence mode="popLayout" initial={false}>
+            {shown.map((product, index) => (
+              <motion.li
+                key={product.slug}
+                layout={!reduceMotion}
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={reduceMotion ? { duration: 0 } : springSnappy}
+              >
+                <div className="reveal-on-scroll">
+                  <ProductCard product={product} priority={index < 2} sharedMedia />
+                </div>
+              </motion.li>
+            ))}
+          </AnimatePresence>
+        </ul>
+        {shown.length === 0 && (
+          <p className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
+            No templates in this category yet.
+          </p>
+        )}
       </section>
     </main>
-  );
-}
-
-function ProductCard({
-  product: p,
-  index,
-  prefersReducedMotion,
-}: {
-  product: Product;
-  index: number;
-  prefersReducedMotion: boolean | null;
-}) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  return (
-    <motion.div
-      variants={revealVariants}
-      custom={index}
-      initial={prefersReducedMotion ? false : "hidden"}
-      {...(prefersReducedMotion ? {} : { whileInView: "visible" })}
-      viewport={{ once: false, amount: 0.15 }}
-    >
-      <Link
-        to="/templates/$slug"
-        params={{ slug: p.slug }}
-        className="product-card group"
-        onMouseEnter={() => videoRef.current?.play()}
-        onMouseLeave={() => {
-          const v = videoRef.current;
-          if (v) {
-            v.pause();
-            v.currentTime = 0;
-          }
-        }}
-      >
-        <div className="relative overflow-hidden rounded-lg">
-          <img
-            src={p.image}
-            alt={p.name}
-            width={1024}
-            height={640}
-            loading="lazy"
-            className="aspect-[16/10] w-full object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex h-2/3 items-end bg-gradient-to-t from-black/95 via-black/55 to-transparent p-5">
-            <span className="font-display text-2xl font-extrabold text-white drop-shadow-md sm:text-3xl">
-              {p.coverTitle ?? p.name}
-            </span>
-          </div>
-          {p.hoverVideo && (
-            <video
-              ref={videoRef}
-              src={p.hoverVideo}
-              muted
-              loop
-              playsInline
-              preload="none"
-              className="absolute inset-0 aspect-[16/10] w-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-            />
-          )}
-        </div>
-        <div className="mt-4 flex items-start justify-between gap-4">
-          <div>
-            <p className="eyebrow">{p.category}</p>
-            <h2 className="mt-1 font-display text-2xl">{p.name}</h2>
-          </div>
-          <span className="price-tag">{p.price === 0 ? "Free" : `€${p.price.toFixed(2)}`}</span>
-        </div>
-      </Link>
-    </motion.div>
   );
 }

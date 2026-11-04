@@ -1,26 +1,11 @@
-import type { Variants } from "motion/react";
+import type { Transition } from "motion/react";
 
-export const STAGGER_DELAY = 0.08;
-export const REVEAL_DURATION = 0.72;
-export const REVEAL_DISTANCE = 14;
-export const REVEAL_FROM_OPACITY = 0;
-export const REVEAL_TO_OPACITY = 1;
-const REVEAL_EASE = [0.16, 1, 0.3, 1] as const;
+export const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
 
-export const staggerParentVariants: Variants = {
-  hidden: {},
-  visible: {},
-};
-
-export const revealVariants: Variants = {
-  hidden: { opacity: REVEAL_FROM_OPACITY, y: REVEAL_DISTANCE },
-  visible: (index: number) => ({
-    opacity: REVEAL_TO_OPACITY,
-    y: 0,
-    transition: {
-      duration: REVEAL_DURATION,
-      delay: index * STAGGER_DELAY,
-      ease: REVEAL_EASE,
-    },
-  }),
-};
+/** Quick, settled motion for UI that follows a click (pills, cards, slides). */
+export const springSnappy = {
+  type: "spring",
+  stiffness: 520,
+  damping: 42,
+  mass: 0.9,
+} as const satisfies Transition;

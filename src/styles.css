@@ -137,22 +137,220 @@
   --sidebar-ring: oklch(0.7388 0.1297 82.9);
 }
 
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --gold-glow: oklch(0.7388 0.1297 82.9 / 0.55);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
   }
 
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: oklch(0.7388 0.1297 82.9 / 0.35);
+    color: var(--color-foreground);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 3px;
   }
 }
 
 @utility eyebrow { font-size: 0.75rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--color-gold); }
-@utility product-card { display:block; padding: 0.75rem; border-radius: var(--radius-xl); background: var(--color-card); border: 1px solid var(--color-border); transition: border-color .3s; &:hover { border-color: var(--color-primary); } }
-@utility price-tag { padding: 0.25rem 0.75rem; border-radius: 999px; background: var(--color-secondary); font-weight: 600; }
-@utility btn-buy { padding: 0.85rem 1.5rem; border-radius: 999px; background: var(--color-primary); color: var(--color-primary-foreground); font-weight: 700; transition: transform .2s; &:hover { transform: translateY(-2px); } }
-@layer base { body { font-family: var(--font-sans); } }
+
+/* Catalog card: lifts on hover, with a gold spotlight and border glow that follow the cursor
+   (ProductCard writes --spot-x / --spot-y on pointer move). */
+@utility product-card {
+  position: relative;
+  display: block;
+  isolation: isolate;
+  padding: 0.75rem;
+  border-radius: var(--radius-xl);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  transition:
+    border-color 0.35s ease,
+    box-shadow 0.5s var(--ease-out-expo),
+    translate 0.5s var(--ease-out-expo);
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: radial-gradient(28rem circle at var(--spot-x, 50%) var(--spot-y, 0%), oklch(0.7388 0.1297 82.9 / 0.1), transparent 45%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  &::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: radial-gradient(16rem circle at var(--spot-x, 50%) var(--spot-y, 0%), oklch(0.7388 0.1297 82.9 / 0.85), transparent 65%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+  &:hover,
+  &:focus-visible {
+    translate: 0 -4px;
+    border-color: oklch(0.7388 0.1297 82.9 / 0.35);
+    box-shadow: 0 28px 60px -28px oklch(0 0 0 / 0.9);
+  }
+  &:hover::before,
+  &:hover::after,
+  &:focus-visible::after {
+    opacity: 1;
+  }
+}
+
+@utility price-tag {
+  flex-shrink: 0;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-secondary);
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+@utility price-tag-free {
+  border-color: oklch(0.7388 0.1297 82.9 / 0.4);
+  background: oklch(0.7388 0.1297 82.9 / 0.12);
+  color: var(--color-gold);
+}
+
+@utility btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.4rem;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 12px 32px -14px var(--gold-glow), inset 0 1px 0 oklch(1 0 0 / 0.3);
+  transition:
+    translate 0.25s var(--ease-out-expo),
+    scale 0.2s var(--ease-out-expo),
+    box-shadow 0.25s ease,
+    opacity 0.2s ease;
+  &:hover {
+    translate: 0 -2px;
+    box-shadow: 0 18px 40px -14px var(--gold-glow), inset 0 1px 0 oklch(1 0 0 / 0.3);
+  }
+  &:active {
+    translate: 0 0;
+    scale: 0.98;
+  }
+  &:disabled {
+    cursor: wait;
+    opacity: 0.65;
+    translate: 0 0;
+  }
+}
+@utility btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  color: var(--color-foreground);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+  &:hover {
+    border-color: oklch(0.7388 0.1297 82.9 / 0.6);
+    background: oklch(0.7388 0.1297 82.9 / 0.06);
+  }
+}
+@utility btn-buy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.95rem 1.6rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, oklch(0.79 0.12 86), var(--color-primary));
+  color: var(--color-primary-foreground);
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 16px 36px -16px var(--gold-glow), inset 0 1px 0 oklch(1 0 0 / 0.35);
+  transition:
+    translate 0.25s var(--ease-out-expo),
+    scale 0.2s var(--ease-out-expo),
+    box-shadow 0.25s ease;
+  &:hover {
+    translate: 0 -2px;
+    box-shadow: 0 22px 44px -16px var(--gold-glow), inset 0 1px 0 oklch(1 0 0 / 0.35);
+  }
+  &:active {
+    translate: 0 0;
+    scale: 0.98;
+  }
+}
+
+@utility stat-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: oklch(0.1911 0.0301 155.1 / 0.6);
+  color: var(--color-muted-foreground);
+  font-size: 0.875rem;
+  white-space: nowrap;
+  & strong {
+    color: var(--color-foreground);
+    font-weight: 700;
+  }
+}
+@utility spec-chip {
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--color-border);
+  background: oklch(0.1911 0.0301 155.1 / 0.7);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+@utility text-gold-gradient {
+  background: linear-gradient(100deg, oklch(0.86 0.1 92) 0%, var(--color-gold) 42%, oklch(0.64 0.13 68) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+@utility glass {
+  background: oklch(0.1487 0.0249 157.6 / 0.72);
+  -webkit-backdrop-filter: saturate(1.5) blur(16px);
+  backdrop-filter: saturate(1.5) blur(16px);
+}
 @keyframes cashvibe-shine {
   0%, 100% { text-shadow: 0 0 2px oklch(0.74 0.13 83 / 25%); }
   50% { text-shadow: 0 0 7px oklch(0.74 0.13 83 / 65%), 0 0 14px oklch(0.74 0.13 83 / 30%); }
@@ -172,9 +370,170 @@
   filter: drop-shadow(0 0 4px oklch(0.74 0.13 83 / 70%));
   animation: star-burst 680ms ease-out both;
 }
+/* Filter chip; the active pill background is a shared motion element that slides between chips. */
+@utility chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  color: var(--color-foreground);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color 0.25s ease, border-color 0.25s ease;
+  &:hover { border-color: oklch(0.7388 0.1297 82.9 / 0.6); }
+}
+@utility chip-active { border-color: transparent; color: var(--color-primary-foreground); }
+
+.site-header { view-transition-name: site-header; }
+
+.skip-link {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 60;
+  translate: 0 -200%;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-weight: 700;
+  transition: translate 0.2s var(--ease-out-expo);
+}
+.skip-link:focus-visible { translate: 0 0; }
+
+/* Soft brand glow behind the hero. Plain gradients (no blur filter) keep it cheap to paint. */
+.hero-aurora {
+  position: absolute;
+  inset: -12rem 0 auto;
+  z-index: -1;
+  height: 54rem;
+  overflow: clip;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
+}
+.hero-aurora::before,
+.hero-aurora::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+}
+.hero-aurora::before {
+  top: 2rem;
+  right: -10rem;
+  width: 48rem;
+  height: 48rem;
+  background: radial-gradient(closest-side, oklch(0.7388 0.1297 82.9 / 0.2), transparent);
+}
+.hero-aurora::after {
+  top: 6rem;
+  left: -16rem;
+  width: 44rem;
+  height: 44rem;
+  background: radial-gradient(closest-side, oklch(0.55 0.11 152 / 0.3), transparent);
+}
+
+.pulse-dot {
+  position: relative;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-gold);
+  box-shadow: 0 0 10px var(--gold-glow);
+}
+.pulse-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--color-gold);
+  animation: pulse-ring 2.4s var(--ease-out-expo) infinite;
+}
+
+@keyframes pulse-ring {
+  from { opacity: 0.7; scale: 1; }
+  to { opacity: 0; scale: 3; }
+}
+@keyframes reveal-up {
+  from { opacity: 0; translate: 0 1.25rem; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes scroll-reveal {
+  from { opacity: 0; translate: 0 3rem; scale: 0.97; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
+@keyframes float-y {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -0.75rem; }
+}
+@keyframes aurora-drift-a { to { transform: translate3d(-9rem, 5rem, 0) scale(1.12); } }
+@keyframes aurora-drift-b { to { transform: translate3d(11rem, 3rem, 0) scale(0.9); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Entrance animations are pure CSS so server-rendered content animates in without waiting for JS. */
+  .reveal {
+    animation: reveal-up 0.9s var(--ease-out-expo) both;
+    animation-delay: calc(var(--reveal-index, 0) * 80ms + 60ms);
+  }
+  .float-y {
+    animation: float-y 7s ease-in-out infinite;
+    animation-delay: var(--float-delay, 0s);
+  }
+}
+
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  .hero-aurora::before { animation: aurora-drift-a 20s ease-in-out infinite alternate; }
+  .hero-aurora::after { animation: aurora-drift-b 24s ease-in-out infinite alternate; }
+}
+
+/* Cards fade up as they scroll into view. Tied to scroll position, so they never lag behind a
+   fast scroll. Browsers without scroll timelines simply show the cards. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal-on-scroll {
+      animation: scroll-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+  }
+}
+
+/* Page transitions (TanStack Router + View Transitions API). Going back, the catalog card the
+   visitor opened (marked by ProductCard) takes the artwork back from the product page. */
+html:active-view-transition-type(back) [data-last-viewed] {
+  view-transition-name: product-media;
+}
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.28s;
+  }
+  ::view-transition-group(product-media) {
+    animation-duration: 0.5s;
+    animation-timing-function: var(--ease-out-expo);
+  }
+  ::view-transition-image-pair(product-media) {
+    overflow: clip;
+    border-radius: var(--radius-xl);
+  }
+  ::view-transition-old(product-media),
+  ::view-transition-new(product-media) {
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .brand-shine { animation: none; }
   .star-burst-particle { animation: none; opacity: 0; }
+  .pulse-dot::after { animation: none; }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }
-@utility chip { padding: 0.5rem 1.1rem; border-radius: 999px; border: 1px solid var(--color-border); font-weight: 600; font-size: 0.875rem; transition: all .2s; &:hover { border-color: var(--color-primary); } }
-@utility chip-active { background: var(--color-primary); color: var(--color-primary-foreground); border-color: var(--color-primary); }

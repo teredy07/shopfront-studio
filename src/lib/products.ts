@@ -1,6 +1,4 @@
-import t1 from "@/assets/t1.jpg";
-import ccImg from "@/assets/CC.png";
-import t3 from "@/assets/t3.jpg";
+import ccImg from "@/assets/cc.avif";
 import smoothPackPreview from "@/assets/smooth-pack-preview.avif";
 import smoothPackPreviewVideo from "@/assets/smooth-pack-preview-video.mp4";
 import tenKPackPreview from "@/assets/10k-pack-preview.avif";
@@ -13,17 +11,17 @@ import qualityCc1 from "@/assets/quality-cc-1.avif";
 import qualityCc2 from "@/assets/quality-cc-2.avif";
 import qualityCc3 from "@/assets/quality-cc-3.avif";
 import t1Hover from "@/assets/neon-title-hover.mp4.asset.json";
-import noCcImg from "@/assets/no_cc.png";
-import topazAfter from "@/assets/topaz-after.png";
+import noCcImg from "@/assets/no-cc.avif";
+import topazAfter from "@/assets/topaz-after.avif";
 import topazBefore from "@/assets/topaz-before-low.jpg";
-import comparison1Before from "@/assets/comparison-1-before.png";
-import comparison1After from "@/assets/comparison-1-after.png";
-import comparison2Before from "@/assets/comparison-2-before.png";
-import comparison2After from "@/assets/comparison-2-after.png";
-import comparison3Before from "@/assets/comparison-3-before.png";
-import comparison3After from "@/assets/comparison-3-after.png";
-import comparison4Before from "@/assets/comparison-4-before.png";
-import comparison4After from "@/assets/comparison-4-after.png";
+import comparison1Before from "@/assets/comparison-1-before.avif";
+import comparison1After from "@/assets/comparison-1-after.avif";
+import comparison2Before from "@/assets/comparison-2-before.avif";
+import comparison2After from "@/assets/comparison-2-after.avif";
+import comparison3Before from "@/assets/comparison-3-before.avif";
+import comparison3After from "@/assets/comparison-3-after.avif";
+import comparison4Before from "@/assets/comparison-4-before.avif";
+import comparison4After from "@/assets/comparison-4-after.avif";
 
 export type Product = {
   slug: string;
