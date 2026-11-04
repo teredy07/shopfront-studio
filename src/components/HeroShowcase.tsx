@@ -10,7 +10,7 @@ import {
 import { useRef, type CSSProperties, type PointerEvent } from "react";
 
 import { formatPrice, warmProductMedia } from "@/lib/catalog";
-import type { Product } from "@/lib/products";
+import { productCategoryPath, type Product } from "@/lib/products";
 import { cn } from "@/lib/utils";
 import { claimSharedMedia } from "@/lib/view-transition";
 
@@ -94,8 +94,8 @@ function ShowcaseCard({
       >
         <div className="float-y" style={{ "--float-delay": slot.float } as CSSProperties}>
           <Link
-            to="/packs/$slug"
-            params={{ slug: product.slug }}
+            to="/$category/$slug"
+            params={{ category: productCategoryPath(product.category), slug: product.slug }}
             onPointerEnter={() => warmProductMedia(product)}
             onFocus={() => warmProductMedia(product)}
             onClick={() => claimSharedMedia(mediaRef.current)}

@@ -78,3 +78,7 @@ export const products: Product[] = [
 ];
 
 export const categories = ["All", "Topaz", "ColorCorrection", "Packs"] as const;
+
+export function productCategoryPath(category: string): string {
+  return category.toLowerCase();
+}
