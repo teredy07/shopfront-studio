@@ -602,6 +602,8 @@ function CodeInput({
       disabled={disabled}
       value={value}
       onChange={setValue}
+      // Codes copied from an email can carry spaces or tabs; keep only the digits.
+      pasteTransformer={(pasted) => pasted.replace(/\D/g, "")}
       onComplete={onComplete}
       containerClassName="mt-2 justify-center"
     >

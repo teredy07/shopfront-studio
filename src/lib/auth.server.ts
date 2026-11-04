@@ -3,6 +3,7 @@ import { createHash, randomBytes, randomInt, randomUUID, scrypt, timingSafeEqual
 import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server";
+import { verificationEmailHtml, verificationEmailText } from "./verification-email";
 
 export type AccountUser = {
   id: string;
@@ -195,66 +196,6 @@ function hashEmailCode(challengeId: string, code: string): string {
   return createHash("sha256").update(`${challengeId}:${code}`).digest("hex");
 }
 
-function emailCodeHtml(code: string, purpose: AuthPurpose): string {
-  const isPasswordReset = purpose === "password-reset";
-  const heading = isPasswordReset ? "Reset your password" : "Your verification code";
-  const instruction = isPasswordReset
-    ? "Use this one-time code to continue resetting your Cashvibe password."
-    : "Enter this one-time code on Cashvibe to continue.";
-
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="color-scheme" content="dark">
-    <meta name="supported-color-schemes" content="dark">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Syne:wght@600;800&display=swap" rel="stylesheet">
-    <title>${heading}</title>
-    <style>
-      :root { color-scheme: dark; supported-color-schemes: dark; }
-      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Syne:wght@600;800&display=swap');
-      @media (max-width: 520px) {
-        .email-card { padding: 28px 22px !important; }
-        .code-value { font-size: 36px !important; letter-spacing: 8px !important; }
-      }
-    </style>
-  </head>
-  <body bgcolor="#030e07" style="margin:0;padding:0;background-color:#030e07;color:#f4f3e0;font-family:'Plus Jakarta Sans',Arial,sans-serif;-webkit-text-size-adjust:100%">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#030e07" style="width:100%;background-color:#030e07;font-family:'Plus Jakarta Sans',Arial,sans-serif">
-      <tr>
-        <td align="center" style="padding:38px 16px">
-          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" bgcolor="#08180e" style="width:100%;max-width:600px;background-color:#08180e;border:1px solid #293e2d;border-radius:24px;overflow:hidden">
-            <tr>
-              <td align="center" bgcolor="#08180e" style="padding:10px 22px 0;background-color:#08180e">
-                <img src="https://cashvibe.shop/cashvibe-email-logo.png" alt="ca$hvibe ★" width="400" style="display:block;width:100%;max-width:400px;height:auto;border:0;outline:none;text-decoration:none">
-              </td>
-            </tr>
-            <tr>
-              <td class="email-card" bgcolor="#08180e" style="padding:30px 42px 34px;background-color:#08180e;font-family:'Plus Jakarta Sans',Arial,sans-serif">
-                <p style="margin:0 0 12px;color:#d2a23b;font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:3px;line-height:1.5;text-transform:uppercase">Cashvibe account</p>
-                <h1 style="margin:0 0 14px;color:#f4f3e0;font-family:Syne,'Arial Black',Arial,sans-serif;font-size:36px;font-weight:800;letter-spacing:-1px;line-height:1.12">${heading}</h1>
-                <p style="margin:0 0 28px;color:#a2a796;font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:16px;line-height:1.65">${instruction} This code expires in <strong style="color:#f4f3e0;font-weight:700">10 minutes</strong>.</p>
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#030e07" style="width:100%;background-color:#030e07;border:2px solid #d2a23b;border-radius:18px">
-                  <tr>
-                    <td align="center" class="code-value" style="padding:22px 12px;color:#f4f3e0;font-family:Syne,'Arial Black',Arial,sans-serif;font-size:44px;font-weight:800;letter-spacing:12px;line-height:1.25">${code}</td>
-                  </tr>
-                </table>
-                <p style="margin:24px 0 0;color:#a2a796;font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:14px;line-height:1.6">If you didn't request this code, you can safely ignore this email.</p>
-                <div style="height:1px;margin:28px 0 18px;background-color:#293e2d;line-height:1px">&nbsp;</div>
-                <p style="margin:0;color:#a2a796;font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:12px;line-height:1.5">Cashvibe · <a href="https://cashvibe.shop" style="color:#d2a23b;text-decoration:none">cashvibe.shop</a></p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`;
-}
-
 async function sendEmailCode(email: string, code: string, purpose: AuthPurpose): Promise<void> {
   const apiKey = process.env["RESEND_API_KEY"]?.trim();
   if (!apiKey) {
@@ -271,10 +212,8 @@ async function sendEmailCode(email: string, code: string, purpose: AuthPurpose):
       from: "Cashvibe <noreply@cashvibe.shop>",
       to: [email],
       subject: purpose === "password-reset" ? "Reset your Cashvibe password" : "Your Cashvibe verification code",
-      text: purpose === "password-reset"
-        ? `Your Cashvibe password reset code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore this email.`
-        : `Your Cashvibe verification code is ${code}. It expires in 10 minutes. If you didn't request this, you can ignore this email.`,
-      html: emailCodeHtml(code, purpose),
+      text: verificationEmailText(code, purpose),
+      html: verificationEmailHtml(code, purpose),
     }),
   });
 
