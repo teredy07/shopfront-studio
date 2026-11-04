@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { rememberViewedProduct, SHARED_MEDIA_NAME } from "@/lib/view-transition";
 
-export const Route = createFileRoute("/templates/$slug")({
+export const Route = createFileRoute("/packs/$slug")({
   loader: ({ params }) => {
     const product = products.find((p) => p.slug === params.slug);
     if (!product) throw notFound();
@@ -27,8 +27,8 @@ export const Route = createFileRoute("/templates/$slug")({
   head: ({ loaderData }) => {
     const title = loaderData
       ? `${loaderData.product.name} — cashvibe`
-      : "Template not found — cashvibe";
-    const desc = loaderData?.product.blurb || "After Effects template";
+      : "Pack not found — cashvibe";
+    const desc = loaderData?.product.blurb || "After Effects pack";
     return {
       meta: [
         { title },
@@ -74,7 +74,7 @@ function ProductDetails({ product: p }: { product: Product }) {
             aria-hidden="true"
             className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-0.5"
           />
-          All templates
+          All packs
         </Link>
         {category && (
           <>
@@ -82,7 +82,7 @@ function ProductDetails({ product: p }: { product: Product }) {
             <Link
               to="/"
               search={{ category }}
-              hash="templates"
+              hash="packs"
               className="py-1 transition hover:text-foreground"
             >
               {category}
@@ -151,12 +151,12 @@ function ProductDetails({ product: p }: { product: Product }) {
             <div>
               <p className="eyebrow">Keep browsing</p>
               <h2 id="related-title" className="mt-2 font-display text-3xl md:text-4xl">
-                More templates
+                More packs
               </h2>
             </div>
             <Link
               to="/"
-              hash="templates"
+              hash="packs"
               className="group hidden items-center gap-1.5 text-sm font-semibold text-gold sm:inline-flex"
             >
               View all

@@ -48,7 +48,7 @@ export function ProductCard({
 
   return (
     <Link
-      to="/templates/$slug"
+      to="/packs/$slug"
       params={{ slug: p.slug }}
       className="product-card group"
       onPointerEnter={startPreview}

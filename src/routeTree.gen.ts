@@ -10,43 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TemplatesSlugRouteImport } from './routes/templates.$slug'
+import { Route as PacksSlugRouteImport } from './routes/packs.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TemplatesSlugRoute = TemplatesSlugRouteImport.update({
-  id: '/templates/$slug',
-  path: '/templates/$slug',
+const PacksSlugRoute = PacksSlugRouteImport.update({
+  id: '/packs/$slug',
+  path: '/packs/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/templates/$slug': typeof TemplatesSlugRoute
+  '/packs/$slug': typeof PacksSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/templates/$slug': typeof TemplatesSlugRoute
+  '/packs/$slug': typeof PacksSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/templates/$slug': typeof TemplatesSlugRoute
+  '/packs/$slug': typeof PacksSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/templates/$slug'
+  fullPaths: '/' | '/packs/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/templates/$slug'
-  id: '__root__' | '/' | '/templates/$slug'
+  to: '/' | '/packs/$slug'
+  id: '__root__' | '/' | '/packs/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  TemplatesSlugRoute: typeof TemplatesSlugRoute
+  PacksSlugRoute: typeof PacksSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,11 +58,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/templates/$slug': {
-      id: '/templates/$slug'
-      path: '/templates/$slug'
-      fullPath: '/templates/$slug'
-      preLoaderRoute: typeof TemplatesSlugRouteImport
+    '/packs/$slug': {
+      id: '/packs/$slug'
+      path: '/packs/$slug'
+      fullPath: '/packs/$slug'
+      preLoaderRoute: typeof PacksSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -70,7 +70,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  TemplatesSlugRoute: TemplatesSlugRoute,
+  PacksSlugRoute: PacksSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

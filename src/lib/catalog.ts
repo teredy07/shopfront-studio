@@ -19,7 +19,9 @@ export function isCategory(value: unknown): value is Category {
 
 /** Reads the home page's `?category=` filter, dropping anything that isn't a real category. */
 export function parseCatalogSearch(search: Record<string, unknown>): CatalogSearch {
-  const category = search["category"];
+  const rawCategory = search["category"];
+  // Keep previously shared CC filter URLs working after the category rename.
+  const category = rawCategory === "CC" ? "ColorCorrection" : rawCategory;
   return isCategory(category) && category !== "All" ? { category } : {};
 }
 

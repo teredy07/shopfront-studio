@@ -94,7 +94,7 @@ function ShowcaseCard({
       >
         <div className="float-y" style={{ "--float-delay": slot.float } as CSSProperties}>
           <Link
-            to="/templates/$slug"
+            to="/packs/$slug"
             params={{ slug: product.slug }}
             onPointerEnter={() => warmProductMedia(product)}
             onFocus={() => warmProductMedia(product)}

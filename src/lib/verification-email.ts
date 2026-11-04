@@ -43,7 +43,7 @@ export const emailCopy = {
   eyebrow: "Cashvibe account",
   expires: "Expires in 10 minutes",
   neverShare: "Never share this code with anyone.",
-  footer: ["Cashvibe · After Effects templates", "cashvibe.shop"] as const,
+  footer: ["Cashvibe · After Effects packs", "cashvibe.shop"] as const,
   purposes: {
     signup: {
       label: "verification",
