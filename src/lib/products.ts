@@ -43,8 +43,8 @@ export type Product = {
 export const products: Product[] = [
   { slug: "neon-title-pack", name: "Topaz Settings (OLD)", category: "Topaz", price: 0, image: comparison1After, hoverVideo: t1Hover.url, coverTitle: "Topaz Settings (OLD)", comparisonImages: [{ beforeSrc: comparison1Before, afterSrc: comparison1After }, { beforeSrc: comparison2Before, afterSrc: comparison2After }, { beforeSrc: comparison3Before, afterSrc: comparison3After }, { beforeSrc: comparison4Before, afterSrc: comparison4After }], blurb: "20 cinematic 3D title animations with light-streak reveals.", specs: ["Topaz 3.1.1", "4K / 1080p"] },
   { slug: "topaz-settings", name: "Topaz Settings", category: "Topaz", price: 5, image: topazAfter, compareImage: topazBefore, blurb: "See the before and after result of the Topaz settings.", specs: ["Topaz 3.1.1 version", "Topaz settings"] },
-  { slug: "liquid-transitions", name: "Chihiro", category: "CC", price: 2.5, image: ccImg, compareImage: noCcImg, blurb: "", description: "This pack is non-refundable and may not be redistributed, except where applicable law requires otherwise. By purchasing, you confirm that you are authorized to use the payment method and authorize the full charge for this transaction.\n\nAccess may be denied if you are found to be sharing or leaking the pack, participating in a leak server, using an alternate account to evade restrictions, or otherwise appear to be involved in unauthorized distribution. In these cases, no refund will be provided except where required by applicable law.\n\nPlease review the product details before purchasing. Your statutory consumer rights are not affected by this policy.", specs: ["After Effects 2020+", "Plugins Req: Bcc. Magic Bullet Looks, Sapphire"] },
-  { slug: "new-windows", name: "Quality CC", category: "CC", price: 0, image: newWindowsCcPreview, previewSlides: [{ type: "image", src: newWindowsCcPreview }, { type: "image", src: qualityCc1 }, { type: "image", src: qualityCc2 }, { type: "image", src: qualityCc3 }], blurb: "", specs: ["After Effects 2020+", "Plugins needed:", "Magic Bullets Looks"] },
+  { slug: "liquid-transitions", name: "Chihiro", category: "ColorCorrection", price: 2.5, image: ccImg, compareImage: noCcImg, blurb: "", description: "This pack is non-refundable and may not be redistributed, except where applicable law requires otherwise. By purchasing, you confirm that you are authorized to use the payment method and authorize the full charge for this transaction.\n\nAccess may be denied if you are found to be sharing or leaking the pack, participating in a leak server, using an alternate account to evade restrictions, or otherwise appear to be involved in unauthorized distribution. In these cases, no refund will be provided except where required by applicable law.\n\nPlease review the product details before purchasing. Your statutory consumer rights are not affected by this policy.", specs: ["After Effects 2020+", "Plugins Req: Bcc. Magic Bullet Looks, Sapphire"] },
+  { slug: "new-windows", name: "Quality CC", category: "ColorCorrection", price: 0, image: newWindowsCcPreview, previewSlides: [{ type: "image", src: newWindowsCcPreview }, { type: "image", src: qualityCc1 }, { type: "image", src: qualityCc2 }, { type: "image", src: qualityCc3 }], blurb: "", specs: ["After Effects 2020+", "Plugins needed:", "Magic Bullets Looks"] },
   { slug: "glitch-logo-reveal", name: "Cashvibe Smooth Pack", category: "Packs", price: 0, image: smoothPackPreview, previewVideo: smoothPackPreviewVideo, blurb: "RGB-split glitch reveal for logos and wordmarks.", specs: ["After Effects 2017+", "Plugins needed:", "Magic Bullet Looks", "Sapphire", "BCC", "Twixtor", "Deep Glow", "Twitch", "Glichify", "Topaz Video AI 3.1.10"] },
   {
     slug: "10k-pack",
@@ -77,4 +77,8 @@ export const products: Product[] = [
   },
 ];
 
-export const categories = ["All", "Topaz", "CC", "Packs"] as const;
+export const categories = ["All", "Topaz", "ColorCorrection", "Packs"] as const;
+
+export function productCategoryPath(category: string): string {
+  return category.toLowerCase();
+}

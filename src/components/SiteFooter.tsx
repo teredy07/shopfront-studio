@@ -11,10 +11,10 @@ export function SiteFooter() {
             ca<span className="text-gold">$</span>hvibe
           </Link>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            After Effects templates, color correction and Topaz settings for editors and creators.
+            After Effects packs, ColorCorrection and Topaz settings for editors and creators.
           </p>
         </div>
-        <nav aria-label="Browse templates">
+        <nav aria-label="Browse packs">
           <p className="eyebrow">Browse</p>
           <ul className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2.5 text-sm">
             {categories.map((category) => (
@@ -22,10 +22,10 @@ export function SiteFooter() {
                 <Link
                   to="/"
                   search={category === "All" ? {} : { category }}
-                  hash="templates"
+                  hash="packs"
                   className="text-muted-foreground transition hover:text-foreground"
                 >
-                  {category === "All" ? "All templates" : category}
+                  {category === "All" ? "All packs" : category}
                 </Link>
               </li>
             ))}

@@ -3,7 +3,7 @@ import { ArrowUpRight } from "lucide-react";
 import { useRef, useState, type PointerEvent } from "react";
 
 import { formatPrice, warmProductMedia } from "@/lib/catalog";
-import type { Product } from "@/lib/products";
+import { productCategoryPath, type Product } from "@/lib/products";
 import { cn } from "@/lib/utils";
 import { claimSharedMedia, wasLastViewed } from "@/lib/view-transition";
 
@@ -48,8 +48,8 @@ export function ProductCard({
 
   return (
     <Link
-      to="/templates/$slug"
-      params={{ slug: p.slug }}
+      to="/$category/$slug"
+      params={{ category: productCategoryPath(p.category), slug: p.slug }}
       className="product-card group"
       onPointerEnter={startPreview}
       onPointerLeave={stopPreview}

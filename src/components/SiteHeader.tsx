@@ -114,11 +114,11 @@ export function SiteHeader({ user, loading, onOpenAuth, onUserChange }: Props) {
         <nav aria-label="Main" className="flex items-center gap-1 sm:gap-3">
           <Link
             to="/"
-            hash="templates"
+            hash="packs"
             hashScrollIntoView={{ behavior: "smooth", block: "start" }}
             className="hidden rounded-full px-3 py-2 text-sm text-muted-foreground transition hover:text-foreground md:inline-flex"
           >
-            After Effects templates
+            After Effects packs
           </Link>
 
           {loading ? (

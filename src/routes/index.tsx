@@ -26,15 +26,15 @@ export const Route = createFileRoute("/")({
   validateSearch: parseCatalogSearch,
   head: () => ({
     meta: [
-      { title: "cashvibe — After Effects Templates" },
+      { title: "cashvibe — After Effects Packs" },
       {
         name: "description",
-        content: "Premium After Effects templates: titles, transitions, logo reveals and overlays.",
+        content: "After Effects packs, color correction and Topaz settings for editors and creators.",
       },
-      { property: "og:title", content: "cashvibe — After Effects Templates" },
+      { property: "og:title", content: "cashvibe — After Effects Packs" },
       {
         property: "og:description",
-        content: "Premium After Effects templates: titles, transitions, logo reveals and overlays.",
+        content: "After Effects packs, color correction and Topaz settings for editors and creators.",
       },
     ],
   }),
@@ -65,7 +65,7 @@ function Index() {
   function scrollToCatalog(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
     document
-      .getElementById("templates")
+      .getElementById("packs")
       ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
   }
 
@@ -80,7 +80,7 @@ function Index() {
               style={revealAt(0)}
             >
               <span aria-hidden="true" className="pulse-dot" />
-              After Effects templates
+              After Effects packs
             </p>
             <h1
               className={cn(
@@ -102,15 +102,15 @@ function Index() {
               className={cn("mt-9 flex flex-wrap items-center gap-3", intro && "reveal")}
               style={revealAt(3)}
             >
-              <a href="#templates" className="btn-primary group" onClick={scrollToCatalog}>
-                Browse templates
+              <a href="#packs" className="btn-primary group" onClick={scrollToCatalog}>
+                Browse packs
                 <ArrowDown
                   aria-hidden="true"
                   className="h-4 w-4 transition-transform duration-300 group-hover:translate-y-0.5"
                 />
               </a>
               <span className="stat-pill">
-                <strong>{products.length}</strong> templates
+                <strong>{products.length}</strong> packs
               </span>
               <span className="stat-pill">
                 <strong>{freeCount}</strong> free downloads
@@ -122,15 +122,15 @@ function Index() {
       </section>
 
       <section
-        id="templates"
-        aria-labelledby="templates-title"
+        id="packs"
+        aria-labelledby="packs-title"
         className="mx-auto max-w-6xl scroll-mt-24 px-5 pb-24 sm:px-6"
       >
         <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="eyebrow">Catalog</p>
-            <h2 id="templates-title" className="mt-2 font-display text-3xl md:text-4xl">
-              Templates
+            <h2 id="packs-title" className="mt-2 font-display text-3xl md:text-4xl">
+              Packs
             </h2>
           </div>
           <LayoutGroup id="category-filter">
@@ -184,7 +184,7 @@ function Index() {
         </ul>
         {shown.length === 0 && (
           <p className="rounded-2xl border border-dashed border-border p-10 text-center text-muted-foreground">
-            No templates in this category yet.
+            No packs in this category yet.
           </p>
         )}
       </section>
