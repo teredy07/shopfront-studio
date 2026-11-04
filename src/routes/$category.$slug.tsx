@@ -2,7 +2,7 @@ import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-route
 import { ArrowLeft, ArrowRight, ChevronRight } from "lucide-react";
 import { useEffect, type CSSProperties } from "react";
 import { toast } from "sonner";
-import { productCategoryPath, products, type Product } from "@/lib/products";
+import { findProductBySlug, productCategoryPath, type Product } from "@/lib/products";
 import { BeforeAfterSlider } from "@/components/BeforeAfterSlider";
 import { PreviewCarousel } from "@/components/PreviewCarousel";
 import { ProductCard } from "@/components/ProductCard";
@@ -20,10 +20,10 @@ import { rememberViewedProduct, SHARED_MEDIA_NAME } from "@/lib/view-transition"
 
 export const Route = createFileRoute("/$category/$slug")({
   loader: ({ params }) => {
-    const product = products.find((p) => p.slug === params.slug);
+    const product = findProductBySlug(params.slug);
     if (!product) throw notFound();
     const category = productCategoryPath(product.category);
-    if (params.category !== category) {
+    if (params.category !== category || params.slug !== product.slug) {
       throw redirect({ to: "/$category/$slug", params: { category, slug: product.slug } });
     }
     return { product };
