@@ -2,44 +2,72 @@ import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  allEmailAssets,
   verificationEmailHtml,
+  verificationEmailPurposes,
   verificationEmailText,
-  type VerificationEmailPurpose,
 } from "@/lib/verification-email";
 
-const purposes: VerificationEmailPurpose[] = ["signup", "login", "password-reset"];
+const imageSources = (html: string) =>
+  [...html.matchAll(/<img[^>]+src="([^"]+)"/g)].map((match) => match[1] ?? "");
 
-describe("verification emails", () => {
-  it.each(purposes)("puts the %s code in the inbox preview and the code block", (purpose) => {
-    const html = verificationEmailHtml("482913", purpose);
-    expect(html).toContain("482913 is your Cashvibe code. It expires in 10 minutes.");
-    expect(html).toMatch(/class="code"[^>]*>482913<\/div>/);
+describe("verification email", () => {
+  it("has an image in public/email for every asset (regenerate them after copy changes)", () => {
+    for (const asset of allEmailAssets()) {
+      expect(existsSync(`public/email/${asset.file}`), asset.file).toBe(true);
+    }
   });
 
-  it("titles each email for what it's for", () => {
-    expect(verificationEmailHtml("482913", "signup")).toContain(
+  it.each(verificationEmailPurposes)("%s: only references images that exist", (purpose) => {
+    const known = new Set(allEmailAssets().map((asset) => asset.file));
+    for (const src of imageSources(verificationEmailHtml("745735", purpose))) {
+      expect(src.startsWith("https://www.cashvibe.shop/email/"), src).toBe(true);
+      expect(known.has(src.split("/").pop() ?? ""), src).toBe(true);
+    }
+  });
+
+  it("spells the code with digit images, in order", () => {
+    const html = verificationEmailHtml("745735", "login");
+    const digits = [...html.matchAll(/<img class="digit"[^>]+alt="(\d)"/g)].map(
+      (match) => match[1],
+    );
+    expect(digits.join("")).toBe("745735");
+  });
+
+  it("shows the code in the inbox preview and titles each purpose", () => {
+    expect(verificationEmailHtml("745735", "signup")).toContain(
+      "745735 is your Cashvibe code. It expires in 10 minutes.",
+    );
+    expect(verificationEmailHtml("745735", "signup")).toContain(
       "<title>Confirm your email</title>",
     );
-    expect(verificationEmailHtml("482913", "login")).toContain("<title>Your login code</title>");
-    expect(verificationEmailHtml("482913", "password-reset")).toContain(
+    expect(verificationEmailHtml("745735", "login")).toContain("<title>Your login code</title>");
+    expect(verificationEmailHtml("745735", "password-reset")).toContain(
       "<title>Reset your password</title>",
     );
   });
 
-  it("loads the wordmark from www, which serves it without a redirect", () => {
-    const html = verificationEmailHtml("482913", "login");
-    expect(html).toContain('src="https://www.cashvibe.shop/email/cashvibe-wordmark.png"');
-    expect(html).not.toContain("https://cashvibe.shop");
-    expect(existsSync("public/email/cashvibe-wordmark.png")).toBe(true);
+  // Gmail's iPhone dark mode recolors text and background colors but not images or gradients.
+  it.each(verificationEmailPurposes)("%s: survives Gmail's dark mode", (purpose) => {
+    const html = verificationEmailHtml("745735", purpose);
+    const body = html.slice(html.indexOf("<body"));
+    expect(body.match(/background-color:/g)?.length).toBe(body.match(/linear-gradient\(/g)?.length);
+
+    const visibleText = body
+      .replace(/<div style="display:none[^>]*>.*?<\/div>/s, "") // preheader
+      .replace(/<!--.*?-->/gs, "")
+      .replace(/<[^>]+>/g, "")
+      .trim();
+    expect(visibleText).toBe("");
   });
 
   it("tells the account owner a login code means their password was used", () => {
-    expect(verificationEmailText("482913", "login")).toContain("Someone may know your password.");
+    expect(verificationEmailText("745735", "login")).toContain("Someone may know your password.");
   });
 
   it("keeps the code in a plain sentence in the text version", () => {
-    expect(verificationEmailText("482913", "password-reset")).toMatch(
-      /^Your Cashvibe password reset code is 482913\. It expires in 10 minutes\./,
+    expect(verificationEmailText("745735", "password-reset")).toMatch(
+      /^Your Cashvibe password reset code is 745735\. It expires in 10 minutes\./,
     );
   });
 });
