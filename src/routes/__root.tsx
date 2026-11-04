@@ -31,7 +31,7 @@ function NotFoundComponent() {
           The page you're looking for doesn't exist or has been moved.
         </p>
         <Link to="/" className="btn-primary mt-8">
-          Browse templates
+          Browse packs
         </Link>
       </div>
     </main>
@@ -80,7 +80,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       // Default for pages without their own title (e.g. 404); routes override it.
-      { title: "cashvibe — After Effects Templates" },
+      { title: "cashvibe — After Effects Packs" },
       { name: "theme-color", content: "#030e07" },
       { name: "color-scheme", content: "dark" },
       { property: "og:type", content: "website" },
